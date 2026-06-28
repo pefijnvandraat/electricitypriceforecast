@@ -33,13 +33,19 @@ _MIN_INTERVAL_S = 0.20
 _last_call = {"t": 0.0}
 
 
-def _get(url, params=None, timeout=90, retries=5, throttle=True):
-    """HTTP GET with throttling and exponential backoff on 429 / 5xx."""
+def _get(url, params=None, timeout=90, retries=6, throttle=True, min_interval=None):
+    """HTTP GET with throttling and exponential backoff on 429 / 5xx.
+
+    `min_interval` overrides the default spacing between calls. Energy-Charts is
+    rate-sensitive, so its calls pass a larger interval to avoid 429s entirely
+    (predictable pacing beats many exponential-backoff retries).
+    """
+    gap = _MIN_INTERVAL_S if min_interval is None else min_interval
     if throttle:
-        wait = _MIN_INTERVAL_S - (time.monotonic() - _last_call["t"])
+        wait = gap - (time.monotonic() - _last_call["t"])
         if wait > 0:
             time.sleep(wait)
-    delay = 2.0
+    delay = 3.0
     last_exc = None
     for attempt in range(retries):
         try:
@@ -81,7 +87,7 @@ def fetch_energy_charts_prices(bzn, start_dt, end_dt):
                   "start": cur.strftime("%Y-%m-%d"),
                   "end": chunk_end.strftime("%Y-%m-%d")}
         try:
-            r = _get(ENERGY_CHARTS_PRICE, params=params, timeout=90)
+            r = _get(ENERGY_CHARTS_PRICE, params=params, timeout=90, min_interval=2.5)
             if r.status_code == 200:
                 j = r.json()
                 secs, prices = j.get("unix_seconds"), j.get("price")
