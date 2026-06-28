@@ -46,3 +46,19 @@ footer a{color:var(--hist)}
 .slider:before{content:"";position:absolute;height:16px;width:16px;left:3px;top:3px;background:var(--muted);border-radius:50%;transition:.2s}
 .switch input:checked + .slider{background:#46d39a}
 .switch input:checked + .slider:before{transform:translateX(20px);background:var(--input)}
+
+/* Mobile responsiveness */
+@media (max-width: 640px){
+  header{padding:14px 14px 4px}
+  h1{font-size:18px}
+  .sub{font-size:12px}
+  .titlebar{flex-direction:column;align-items:stretch;gap:10px}
+  .utility{justify-content:flex-end}
+  .controls{gap:10px;padding:10px 14px}
+  .controls label{min-width:140px;flex:1 1 140px;padding:8px 10px}
+  #chart{height:56vh;min-height:300px;margin:6px 8px}
+  footer{padding:10px 14px 22px;font-size:11px}
+}
+@media (max-width: 380px){
+  .controls label{flex-basis:100%}
+}

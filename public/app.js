@@ -111,8 +111,9 @@ function render() {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const axisFmt = (val) => {
     const d = new Date(val);
-    if (d.getHours() === 0 && d.getMinutes() === 0) return d.getDate() + ' ' + months[d.getMonth()];
-    return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    if (d.getHours() === 0 && d.getMinutes() === 0)
+      return '{d|' + d.getDate() + ' ' + months[d.getMonth()] + '}';   // bold date
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());              // normal hour
   };
   const tipFmt = (val) => {
     const d = new Date(val);
@@ -133,13 +134,12 @@ function render() {
     if (d >= histCut) { const v = (h[hKey] || [])[i]; if (v != null) histPts.push([t, v]); }
   });
 
-  // forecast
+  // forecast (plot ALL points; the visible horizon is controlled by xAxis max / zoom)
   const f = current.forecast;
   const sfx = allin ? '_allin_kwh' : '_wholesale_kwh';
   const med = [], low = [], range = [], p90 = [];
   if (f) {
     f.time.forEach((t, i) => {
-      if (new Date(t) > fcCut) return;
       const v50 = (f['p50' + sfx] || [])[i];
       const v10 = (f['p10' + sfx] || [])[i];
       const v90 = (f['p90' + sfx] || [])[i];
@@ -194,17 +194,23 @@ function render() {
     markLine: {
       symbol: 'none', silent: true,
       lineStyle: { color: muted, type: 'dashed' },
-      label: { show: true, color: muted, formatter: (p) => axisFmt(p.value) },
+      label: { show: true, color: muted, formatter: () => pad(now.getHours()) + ':' + pad(now.getMinutes()) },
       data: [{ xAxis: now.toISOString() }],
     },
   });
 
+  // Visible window: history left edge .. forecast horizon (controlled by the slider),
+  // but the user can mouse/touch-zoom the FORECAST horizon between 1 day and the max.
+  const fcEnd = f && f.time.length ? new Date(f.time[f.time.length - 1]) : fcCut;
+  const winStart = histCut;
+  const isMobile = window.innerWidth < 640;
+
   chart.setOption({
-    grid: { left: 56, right: 18, top: 30, bottom: 40 },
-    legend: { top: 0, textStyle: { color: muted },
+    grid: { left: 48, right: 14, top: isMobile ? 54 : 30, bottom: 56 },
+    legend: { top: 0, textStyle: { color: muted }, type: 'scroll',
       data: [T('lhist'), T('lval'), T('lfc'), T('lband')] },
     tooltip: {
-      trigger: 'axis',
+      trigger: 'axis', confine: true,
       valueFormatter: (v) => fmt(v),
       axisPointer: { label: { formatter: (p) => tipFmt(p.value) } },
       formatter: (params) => {
@@ -217,10 +223,22 @@ function render() {
         return html;
       },
     },
-    xAxis: { type: 'time', axisLabel: { color: muted, hideOverlap: true, formatter: axisFmt },
+    dataZoom: [
+      // wheel / pinch zoom + drag; initial window = slider, zoomable to full horizon
+      { type: 'inside', startValue: winStart, endValue: fcCut,
+        minValueSpan: 24 * 3600 * 1000, zoomLock: false, zoomOnMouseWheel: true,
+        moveOnMouseMove: true, preventDefaultMouseMove: true },
+      { type: 'slider', startValue: winStart, endValue: fcCut, height: 16, bottom: 24,
+        borderColor: lineCol, fillerColor: bandCol,
+        handleStyle: { color: fcCol }, textStyle: { color: muted },
+        labelFormatter: (v) => { const d = new Date(v); return d.getDate() + ' ' + months[d.getMonth()]; } },
+    ],
+    xAxis: { type: 'time', min: winStart, max: fcEnd,
+      axisLabel: { color: muted, hideOverlap: true, formatter: axisFmt, fontSize: isMobile ? 10 : 12,
+        rich: { d: { fontWeight: 'bold', color: muted, fontSize: isMobile ? 10 : 12 } } },
       splitLine: { show: false }, minInterval: 3600 * 1000, maxInterval: 12 * 3600 * 1000 },
     yAxis: { type: 'value', name: '\u20ac/kWh', scale: true,
-      axisLabel: { color: muted, formatter: (v) => v.toFixed(2) },
+      axisLabel: { color: muted, formatter: (v) => v.toFixed(2), fontSize: isMobile ? 10 : 12 },
       splitLine: { lineStyle: { color: lineCol } } },
     series,
   }, true);
@@ -241,7 +259,7 @@ function render() {
 ['zone'].forEach(id => $(id).addEventListener('change', e => loadZone(e.target.value)));
 ['mode', 'hist', 'fc'].forEach(id => $(id).addEventListener('input', render));
 $('entsoe').addEventListener('change', render);
-window.addEventListener('resize', () => chart && chart.resize());
+window.addEventListener('resize', () => { if (chart) chart.resize(); if (current) render(); });
 initChart();
 buildPickers();
 loadMeta();
