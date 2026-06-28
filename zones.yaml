@@ -22,6 +22,7 @@ zones:
     name: "Nederland"
     entsoe_eic: "10YNL----------L"
     entsoe_eic_bzn: "NL"
+    public_power_country: "nl"
     timezone: "Europe/Amsterdam"
     holidays: "NL"
     priced: true
@@ -42,6 +43,7 @@ zones:
   AT:
     name: "Osterreich"
     entsoe_eic_bzn: "AT"
+    public_power_country: "at"
     timezone: "Europe/Vienna"
     holidays: "AT"
     priced: false
@@ -51,6 +53,7 @@ zones:
   BE:
     name: "Belgie"
     entsoe_eic_bzn: "BE"
+    public_power_country: "be"
     timezone: "Europe/Brussels"
     holidays: "BE"
     priced: false
@@ -60,6 +63,7 @@ zones:
   BG:
     name: "Balgariya"
     entsoe_eic_bzn: "BG"
+    public_power_country: "bg"
     timezone: "Europe/Sofia"
     holidays: "BG"
     priced: false
@@ -69,6 +73,7 @@ zones:
   CH:
     name: "Schweiz"
     entsoe_eic_bzn: "CH"
+    public_power_country: "ch"
     timezone: "Europe/Zurich"
     holidays: "CH"
     priced: false
@@ -78,6 +83,7 @@ zones:
   CZ:
     name: "Cesko"
     entsoe_eic_bzn: "CZ"
+    public_power_country: "cz"
     timezone: "Europe/Prague"
     holidays: "CZ"
     priced: false
@@ -87,6 +93,7 @@ zones:
   DE_LU:
     name: "Deutschland/Luxemburg"
     entsoe_eic_bzn: "DE-LU"
+    public_power_country: "de"
     timezone: "Europe/Berlin"
     holidays: "DE"
     priced: false
@@ -114,6 +121,7 @@ zones:
   EE:
     name: "Eesti"
     entsoe_eic_bzn: "EE"
+    public_power_country: "ee"
     timezone: "Europe/Tallinn"
     holidays: "EE"
     priced: false
@@ -123,6 +131,7 @@ zones:
   ES:
     name: "Espana"
     entsoe_eic_bzn: "ES"
+    public_power_country: "es"
     timezone: "Europe/Madrid"
     holidays: "ES"
     priced: false
@@ -132,6 +141,7 @@ zones:
   FI:
     name: "Suomi"
     entsoe_eic_bzn: "FI"
+    public_power_country: "fi"
     timezone: "Europe/Helsinki"
     holidays: "FI"
     priced: false
@@ -141,6 +151,7 @@ zones:
   FR:
     name: "France"
     entsoe_eic_bzn: "FR"
+    public_power_country: "fr"
     timezone: "Europe/Paris"
     holidays: "FR"
     priced: false
@@ -150,6 +161,7 @@ zones:
   GR:
     name: "Ellada"
     entsoe_eic_bzn: "GR"
+    public_power_country: "gr"
     timezone: "Europe/Athens"
     holidays: "GR"
     priced: false
@@ -159,6 +171,7 @@ zones:
   HR:
     name: "Hrvatska"
     entsoe_eic_bzn: "HR"
+    public_power_country: "hr"
     timezone: "Europe/Zagreb"
     holidays: "HR"
     priced: false
@@ -168,6 +181,7 @@ zones:
   HU:
     name: "Magyarorszag"
     entsoe_eic_bzn: "HU"
+    public_power_country: "hu"
     timezone: "Europe/Budapest"
     holidays: "HU"
     priced: false
@@ -240,6 +254,7 @@ zones:
   LT:
     name: "Lietuva"
     entsoe_eic_bzn: "LT"
+    public_power_country: "lt"
     timezone: "Europe/Vilnius"
     holidays: "LT"
     priced: false
@@ -249,6 +264,7 @@ zones:
   LV:
     name: "Latvija"
     entsoe_eic_bzn: "LV"
+    public_power_country: "lv"
     timezone: "Europe/Riga"
     holidays: "LV"
     priced: false
@@ -258,6 +274,7 @@ zones:
   ME:
     name: "Crna Gora"
     entsoe_eic_bzn: "ME"
+    public_power_country: "me"
     timezone: "Europe/Podgorica"
     holidays: "ME"
     priced: false
@@ -312,6 +329,7 @@ zones:
   PL:
     name: "Polska"
     entsoe_eic_bzn: "PL"
+    public_power_country: "pl"
     timezone: "Europe/Warsaw"
     holidays: "PL"
     priced: false
@@ -321,6 +339,7 @@ zones:
   PT:
     name: "Portugal"
     entsoe_eic_bzn: "PT"
+    public_power_country: "pt"
     timezone: "Europe/Lisbon"
     holidays: "PT"
     priced: false
@@ -330,6 +349,7 @@ zones:
   RO:
     name: "Romania"
     entsoe_eic_bzn: "RO"
+    public_power_country: "ro"
     timezone: "Europe/Bucharest"
     holidays: "RO"
     priced: false
@@ -339,6 +359,7 @@ zones:
   RS:
     name: "Srbija"
     entsoe_eic_bzn: "RS"
+    public_power_country: "rs"
     timezone: "Europe/Belgrade"
     holidays: "RS"
     priced: false
@@ -384,6 +405,7 @@ zones:
   SI:
     name: "Slovenija"
     entsoe_eic_bzn: "SI"
+    public_power_country: "si"
     timezone: "Europe/Ljubljana"
     holidays: "SI"
     priced: false
@@ -393,6 +415,7 @@ zones:
   SK:
     name: "Slovensko"
     entsoe_eic_bzn: "SK"
+    public_power_country: "sk"
     timezone: "Europe/Bratislava"
     holidays: "SK"
     priced: false

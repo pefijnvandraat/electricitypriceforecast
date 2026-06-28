@@ -395,6 +395,7 @@ function render() {
       (lrn.coverage != null ? ' \u00b7 ' + Math.round(lrn.coverage * 100) + '% ' + T('learn_cov') : '');
     bits.push(p);
   }
+  if (current.resid_demand) bits.push(T('resid'));
   if (current.priced && current.taxes)
     bits.push('All-in = (kale + opslag + energiebelasting) \u00d7 1,' + current.taxes.btw_pct +
       '; heffingskorting \u20ac ' + current.taxes.belastingvermindering_eur_per_jaar + '/jaar');

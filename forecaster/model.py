@@ -39,6 +39,20 @@ def train_predict(x_train, y_train, x_future):
     return out
 
 
+def predict_feature(x_known, y_known, x_all):
+    """Fit a quick regressor on known rows and predict for all rows.
+
+    Used to forecast residual load into the future from weather + calendar, so it
+    can serve as an exogenous feature for the price model (a simple stacked model).
+    """
+    from sklearn.ensemble import HistGradientBoostingRegressor as _HGB
+    m = _HGB(max_iter=200, learning_rate=0.08, max_leaf_nodes=31,
+             early_stopping=True, validation_fraction=0.1,
+             n_iter_no_change=12, random_state=42)
+    m.fit(x_known, y_known)
+    return m.predict(x_all)
+
+
 def backtest_mae(x, y, days=7):
     """Simple holdout MAE on the most recent `days` of the median model."""
     n = days * 24
@@ -48,6 +62,17 @@ def backtest_mae(x, y, days=7):
     model.fit(x.iloc[:-n], y.iloc[:-n])
     pred = model.predict(x.iloc[-n:])
     return float(np.mean(np.abs(pred - y.iloc[-n:].values)))
+
+
+def holdout_mae(x, y, days=21):
+    """MAE of the p50 model on the most recent `days`, for feature-set comparison."""
+    n = days * 24
+    if len(x) <= n + 400:
+        return None
+    m = _estimator(0.5)
+    m.fit(x.iloc[:-n], y.iloc[:-n])
+    pred = m.predict(x.iloc[-n:])
+    return float(np.mean(np.abs(pred - y.iloc[-n:].to_numpy())))
 
 
 def holdout_predict(x, y, days=21):

@@ -63,12 +63,40 @@ def run_zone(code, cfg, gas=None, co2=None):
     feats = features.assemble(weather, gas, co2, z["timezone"], z["holidays"])
     priced = bool(z.get("priced")) and "taxes" in z
 
+    # ---- exogenous residual-demand feature (single-zone countries only) ----
+    # Residual load = demand minus wind & solar; it drives the evening peak.
+    # It is only available historically, so we forecast it from weather+calendar
+    # and feed it to the price model as a stacked feature.
+    feat_cols = list(features.FEATURES)
+    pp_country = z.get("public_power_country")
+    if pp_country and not feats.empty:
+        try:
+            resid = ingest.fetch_residual_load(pp_country, wx_start.date(), now.date())
+            resid = resid.reindex(feats.index) if len(resid) else pd.Series(dtype=float)
+            known = feats.notna().all(axis=1) & resid.notna()
+            if int(known.sum()) > 500:
+                # Use the PREDICTED residual load everywhere (not the actual on
+                # history) so the feature has the same quality at train and serve
+                # time -- avoids stacking leakage / train-serve skew.
+                pred_all = model.predict_feature(
+                    feats.loc[known, feat_cols], resid.loc[known].values, feats[feat_cols])
+                feats["resid_load"] = pred_all
+                feat_cols.append("resid_load")
+                result_resid = True
+            else:
+                result_resid = False
+        except Exception:
+            result_resid = False
+    else:
+        result_resid = False
+
     result = {
         "zone": code, "name": z["name"], "priced": priced,
         "generated_at": now.isoformat(), "timezone": z["timezone"],
         "history_days": d["history_days_export"], "horizon_days": d["forecast_horizon_days"],
         "unit": "EUR/kWh", "price_source": "energy-charts",
         "entsoe_available": bool(token and len(entsoe.dropna()) > 0),
+        "resid_demand": bool(result_resid),
     }
     if priced:
         result["taxes"] = z["taxes"]
@@ -101,8 +129,8 @@ def run_zone(code, cfg, gas=None, co2=None):
         result["history"] = None
 
     # ---- forecast (model trained on the primary price series) ----
-    cols = features.FEATURES
-    valid = feats[cols].notna().all(axis=1)
+    base_cols = list(features.FEATURES)
+    valid = feats[feat_cols].notna().all(axis=1)
     train_mask = valid & price_feat.notna()
     # Train on the most recent `history_days_train` days (full seasonality with
     # fewer rows keeps the 41-zone run fast). Export history stays longer.
@@ -111,7 +139,23 @@ def run_zone(code, cfg, gas=None, co2=None):
     horizon_end = now + pd.Timedelta(days=d["forecast_horizon_days"])
     fut_mask = valid & (feats.index > now) & (feats.index <= horizon_end)
 
-    x_tr, y_tr = feats.loc[train_mask, cols], price_feat.loc[train_mask]
+    y_tr = price_feat.loc[train_mask]
+
+    # Auto-gating: keep the residual-demand feature only if it actually lowers this
+    # zone's out-of-sample holdout error. A residual-load feature forecast from the
+    # same weather+calendar adds no future information for some zones, so we let the
+    # data decide per zone instead of forcing it.
+    cols = base_cols
+    if result_resid and len(y_tr) > 700:
+        mae_base = model.holdout_mae(feats.loc[train_mask, base_cols], y_tr, days=21)
+        mae_resid = model.holdout_mae(feats.loc[train_mask, feat_cols], y_tr, days=21)
+        if mae_base is not None and mae_resid is not None and mae_resid < mae_base * 0.99:
+            cols = feat_cols
+        else:
+            result_resid = False
+    result["resid_demand"] = bool(result_resid and cols is feat_cols)
+
+    x_tr = feats.loc[train_mask, cols]
     x_fut = feats.loc[fut_mask, cols]
 
     if len(x_tr) > 300 and len(x_fut) > 0:

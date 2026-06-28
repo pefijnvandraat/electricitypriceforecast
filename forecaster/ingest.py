@@ -20,6 +20,7 @@ import pandas as pd
 import requests
 
 ENERGY_CHARTS_PRICE = "https://api.energy-charts.info/price"
+ENERGY_CHARTS_POWER = "https://api.energy-charts.info/public_power"
 ENTSOE_BASE = "https://web-api.tp.entsoe.eu/api"
 OM_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 OM_FORECAST = "https://api.open-meteo.com/v1/forecast"
@@ -104,6 +105,56 @@ def fetch_energy_charts_prices(bzn, start_dt, end_dt):
         return empty
     df = pd.concat(frames).drop_duplicates("ts").set_index("ts").sort_index()
     return df.resample("1h").mean()
+
+
+def fetch_residual_load(country, start_dt, end_dt):
+    """Hourly (UTC) residual load = demand minus wind & solar, from Energy-Charts.
+
+    Residual load is the share of demand that dispatchable (often gas) plants must
+    cover, so it tracks the evening price peak closely. Token-free. Returns an
+    empty Series on failure (the feature is then simply skipped for that zone).
+    """
+    empty = pd.Series(dtype=float)
+    frames = []
+    cur = start_dt
+    while cur < end_dt:
+        chunk_end = min(cur + pd.Timedelta(days=370), end_dt)
+        params = {"country": country,
+                  "start": cur.strftime("%Y-%m-%d"),
+                  "end": chunk_end.strftime("%Y-%m-%d")}
+        try:
+            r = _get(ENERGY_CHARTS_POWER, params=params, timeout=90, min_interval=2.5)
+            if r.status_code != 200:
+                cur = chunk_end
+                continue
+            j = r.json()
+            secs = j.get("unix_seconds")
+            types = {t["name"]: t["data"] for t in j.get("production_types", [])}
+            if not secs or not types:
+                cur = chunk_end
+                continue
+            idx = pd.to_datetime(secs, unit="s", utc=True)
+            if "Residual load" in types:
+                s = pd.Series(pd.to_numeric(types["Residual load"], errors="coerce"), index=idx)
+            elif "Load" in types:
+                load = pd.Series(pd.to_numeric(types["Load"], errors="coerce"), index=idx)
+                ren = pd.Series(0.0, index=idx)
+                for k in ("Wind offshore", "Wind onshore", "Solar"):
+                    if k in types:
+                        ren = ren.add(pd.to_numeric(types[k], errors="coerce"), fill_value=0)
+                s = load - ren
+            else:
+                cur = chunk_end
+                continue
+            frames.append(s.dropna())
+        except (requests.RequestException, ValueError, KeyError, TypeError):
+            pass
+        cur = chunk_end
+    if not frames:
+        return empty
+    s = pd.concat(frames)
+    s = s[~s.index.duplicated(keep="last")].sort_index()
+    return s.resample("1h").mean()
 
 
 # --------------------------------------------------------------------------- #
