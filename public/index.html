@@ -48,21 +48,23 @@
         <span class="slider"></span>
       </span>
     </label>
-    <label class="toggle"><span data-i18n="detail">Details bij aanwijzen</span>
-      <span class="switch">
-        <input type="checkbox" id="detail"/>
-        <span class="slider"></span>
-      </span>
-    </label>
   </section>
 
   <section class="ev" id="evPanel">
-    <label class="toggle ev-enable"><span data-i18n="ev_title">EV-laadvenster</span>
-      <span class="switch">
-        <input type="checkbox" id="evOn"/>
-        <span class="slider"></span>
-      </span>
-    </label>
+    <div class="ev-toggles">
+      <label class="toggle ev-enable"><span data-i18n="ev_title">EV-laadvenster</span>
+        <span class="switch">
+          <input type="checkbox" id="evOn"/>
+          <span class="slider"></span>
+        </span>
+      </label>
+      <label class="toggle ev-enable"><span data-i18n="detail">Details bij aanwijzen</span>
+        <span class="switch">
+          <input type="checkbox" id="detail"/>
+          <span class="slider"></span>
+        </span>
+      </label>
+    </div>
     <div class="ev-fields" id="evFields" hidden>
       <label><span class="lab" data-i18n="ev_batt">Accu (kWh)</span>
         <input type="number" id="evBatt" min="1" max="250" step="1" value="60"/>
