@@ -4,7 +4,14 @@ Sources (all public, tested):
 - ENTSO-E Transparency Platform  -> day-ahead price (target). Needs a free token.
 - Open-Meteo archive + forecast  -> weather features (no key, 16-day horizon).
 - Yahoo Finance (unofficial)      -> TTF gas (EUR) and KRBN carbon proxy.
+
+Rate-limit note (ENTSO-E): the public limit is 400 requests/minute per API token.
+End users never hit ENTSO-E directly: the browser only loads pre-computed static
+JSON from GitHub Pages. Only this CI job calls ENTSO-E (a handful of requests/day).
+`_get` below adds polite throttling + retry/backoff on HTTP 429 so the job stays
+well under the limit even if many zones are added later.
 """
+import time
 import xml.etree.ElementTree as ET
 
 import numpy as np
@@ -18,6 +25,40 @@ YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 
 _HOURLY_VARS = "temperature_2m,wind_speed_100m,shortwave_radiation,cloud_cover"
 _OM_COLS = ["temperature_2m", "wind_speed_100m", "shortwave_radiation", "cloud_cover"]
+
+# Throttle: stay far below 400 req/min (ENTSO-E limit). ~5 req/sec ceiling.
+_MIN_INTERVAL_S = 0.20
+_last_call = {"t": 0.0}
+
+
+def _get(url, params=None, timeout=90, retries=5, throttle=True):
+    """HTTP GET with throttling and exponential backoff on 429 / 5xx."""
+    if throttle:
+        wait = _MIN_INTERVAL_S - (time.monotonic() - _last_call["t"])
+        if wait > 0:
+            time.sleep(wait)
+    delay = 2.0
+    last_exc = None
+    for attempt in range(retries):
+        try:
+            r = requests.get(url, params=params, timeout=timeout,
+                             headers={"User-Agent": "Mozilla/5.0 (electricitypriceforecast)"})
+            _last_call["t"] = time.monotonic()
+            if r.status_code == 429 or 500 <= r.status_code < 600:
+                # honour Retry-After if present, else exponential backoff
+                ra = r.headers.get("Retry-After")
+                sleep_s = float(ra) if (ra and ra.isdigit()) else delay
+                time.sleep(min(sleep_s, 60))
+                delay = min(delay * 2, 60)
+                continue
+            return r
+        except requests.RequestException as e:
+            last_exc = e
+            time.sleep(delay)
+            delay = min(delay * 2, 60)
+    if last_exc is not None:
+        raise last_exc
+    return r
 
 
 # --------------------------------------------------------------------------- #
@@ -94,7 +135,7 @@ def fetch_dayahead_prices(eic, start_dt, end_dt, token):
             "periodEnd": chunk_end.strftime("%Y%m%d%H%M"),
         }
         try:
-            r = requests.get(ENTSOE_BASE, params=params, timeout=90)
+            r = _get(ENTSOE_BASE, params=params)
             if r.status_code == 200 and "Publication_MarketDocument" in r.text:
                 frames.append(_parse_a44(r.text))
         except requests.RequestException:
@@ -119,7 +160,7 @@ def _om_collect(base, points, extra):
                   "hourly": _HOURLY_VARS, "timezone": "UTC"}
         params.update(extra)
         try:
-            r = requests.get(base, params=params, timeout=90)
+            r = _get(base, params=params)
             r.raise_for_status()
             h = r.json().get("hourly", {})
         except (requests.RequestException, ValueError):
@@ -160,9 +201,8 @@ def fetch_weather(points, start_date, end_date):
 def fetch_yahoo_daily(symbol, rng="2y"):
     """Return a daily (UTC-normalised date index) close series, or empty on failure."""
     try:
-        r = requests.get(YAHOO.format(symbol=symbol),
-                         params={"interval": "1d", "range": rng},
-                         headers={"User-Agent": "Mozilla/5.0"}, timeout=60)
+        r = _get(YAHOO.format(symbol=symbol),
+                 params={"interval": "1d", "range": rng}, timeout=60, throttle=False)
         r.raise_for_status()
         res = r.json()["chart"]["result"][0]
         ts = res["timestamp"]
