@@ -99,6 +99,65 @@ async function loadZone(code) {
   render();
 }
 
+// EV charging optimizer: per day, find the cheapest contiguous block of the
+// number of hours needed to add the requested charge. Returns chart markAreas
+// and renders a per-day list. Operates on the forecast p50 series (`med`).
+function computeEvWindows(med, fcCut) {
+  const res = document.getElementById('evResult');
+  if (!document.getElementById('evOn').checked || !med || !med.length) {
+    if (res) res.innerHTML = '';
+    return [];
+  }
+  const batt = Math.max(0, +document.getElementById('evBatt').value || 0);
+  const pct = Math.max(0, Math.min(100, +document.getElementById('evPct').value || 0));
+  const pow = Math.max(0.1, +document.getElementById('evPow').value || 0.1);
+  const energy = batt * pct / 100;                         // kWh to add
+  const hoursNeeded = Math.max(1, Math.ceil(energy / pow));
+
+  const pts = med.map(([iso, v]) => ({ t: new Date(iso), iso, v }))
+    .filter((p) => isFinite(p.v) && (!fcCut || p.t <= fcCut));
+  const byDay = new Map();
+  pts.forEach((p) => {
+    const k = p.t.getFullYear() + '-' + p.t.getMonth() + '-' + p.t.getDate();
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(p);
+  });
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const hh = (d) => pad(d.getHours()) + ':' + pad(d.getMinutes());
+  const windows = [], rows = [];
+  [...byDay.values()].forEach((dayPts) => {
+    dayPts.sort((a, b) => a.t - b.t);
+    const n = dayPts.length;
+    const w = Math.min(hoursNeeded, n);
+    if (!w) return;
+    let best = Infinity, bestI = 0;
+    for (let i = 0; i + w <= n; i++) {
+      let sum = 0;
+      for (let j = i; j < i + w; j++) sum += dayPts[j].v;
+      if (sum < best) { best = sum; bestI = i; }
+    }
+    const sP = dayPts[bestI], eP = dayPts[bestI + w - 1];
+    const end = new Date(eP.t.getTime() + 3600e3);
+    windows.push({ startIso: sP.iso, endIso: end.toISOString() });
+    rows.push({ day: sP.t, start: sP.t, end, avg: best / w, cost: (best / w) * energy });
+  });
+
+  if (res) {
+    let html = '<div class="ev-head">' + T('ev_need') + ': <strong>' + hoursNeeded +
+      ' ' + T('ev_hours') + '</strong> &middot; ' + energy.toFixed(1) + ' kWh</div><ul class="ev-list">';
+    rows.forEach((r) => {
+      const day = r.day.toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' });
+      html += '<li><span class="ev-day">' + day + '</span>' +
+        '<span class="ev-win">' + hh(r.start) + '\u2013' + hh(r.end) + '</span>' +
+        '<span class="ev-cost">\u2300 ' + fmt(r.avg) + ' &middot; ' + fmt(r.cost) + '</span></li>';
+    });
+    html += '</ul>';
+    res.innerHTML = html;
+  }
+  return windows;
+}
+
 function render() {
   if (!current) return;
   const allin = $('mode').value === 'allin' && current.priced;
@@ -188,6 +247,9 @@ function render() {
         lineStyle: { width: 0 }, areaStyle: { color: bandCol }, silent: true },
     );
   }
+  // ---- EV charging window optimizer (client-side, on the forecast p50) ----
+  const evWindows = computeEvWindows(med, fcCut);
+
   series.push({
     name: T('lfc'), type: 'line', showSymbol: false, data: med,
     lineStyle: { width: 2, color: fcCol }, color: fcCol,
@@ -197,6 +259,12 @@ function render() {
       label: { show: true, color: muted, formatter: () => pad(now.getHours()) + ':' + pad(now.getMinutes()) },
       data: [{ xAxis: now.toISOString() }],
     },
+    markArea: evWindows.length ? {
+      silent: true,
+      itemStyle: { color: 'rgba(70,211,154,0.18)' },
+      label: { show: false },
+      data: evWindows.map((w) => [{ xAxis: w.startIso }, { xAxis: w.endIso }]),
+    } : undefined,
   });
 
   // Visible window: history left edge .. forecast horizon (controlled by the slider),
@@ -274,6 +342,8 @@ function render() {
 ['mode', 'hist', 'fc'].forEach(id => $(id).addEventListener('input', render));
 $('entsoe').addEventListener('change', render);
 $('detail').addEventListener('change', render);
+$('evOn').addEventListener('change', () => { $('evFields').hidden = !$('evOn').checked; render(); });
+['evBatt', 'evPct', 'evPow'].forEach(id => $(id).addEventListener('input', render));
 window.addEventListener('resize', () => { if (chart) chart.resize(); if (current) render(); });
 initChart();
 buildPickers();

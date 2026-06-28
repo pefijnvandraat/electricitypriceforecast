@@ -66,3 +66,29 @@ footer a{color:var(--hist)}
 @media (max-width: 380px){
   .controls label{flex-basis:100%}
 }
+
+/* EV charging optimizer panel */
+.ev{padding:0 24px 4px;display:flex;flex-direction:column;gap:10px}
+.ev-enable{align-self:flex-start;background:var(--panel);padding:8px 12px;border-radius:10px;
+  display:flex;flex-direction:row;align-items:center;gap:10px;font-size:12px;color:var(--muted);min-width:200px}
+.ev-fields{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+.ev-fields[hidden]{display:none}
+.ev-fields label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);
+  background:var(--panel);padding:8px 12px;border-radius:10px;min-width:130px}
+.ev-fields input[type=number]{background:var(--input);color:var(--ink);border:1px solid var(--line);
+  border-radius:6px;padding:6px;font-size:14px;width:100%}
+.ev-result{flex:1 1 100%;background:var(--panel);border-radius:10px;padding:8px 12px}
+.ev-head{font-size:13px;color:var(--ink);margin-bottom:6px}
+.ev-head strong{color:#46d39a}
+.ev-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;max-height:150px;overflow:auto}
+.ev-list li{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);
+  border-bottom:1px solid var(--line);padding-bottom:2px}
+.ev-day{flex:0 0 auto;font-weight:600;color:var(--ink)}
+.ev-win{flex:0 0 auto;color:#46d39a;font-weight:600}
+.ev-cost{flex:1 1 auto;text-align:right}
+@media (max-width:640px){
+  .ev{padding:0 14px 4px}
+  .ev-fields label{min-width:104px;flex:1 1 104px}
+  .ev-result{flex-basis:100%}
+}
+
