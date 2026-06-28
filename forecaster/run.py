@@ -1,4 +1,9 @@
-"""Orchestrate ingest -> features -> model -> static JSON, per enabled zone."""
+"""Orchestrate ingest -> features -> model -> static JSON, per enabled zone.
+
+Supports sharding so a CI matrix can build zones in parallel across runners
+(each runner has its own IP, which sidesteps Energy-Charts per-IP rate limits).
+"""
+import argparse
 import json
 import os
 import pathlib
@@ -135,29 +140,58 @@ def _write(code, result):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--shard", type=int, default=0, help="this shard index (0-based)")
+    ap.add_argument("--shards", type=int, default=1, help="total number of shards")
+    ap.add_argument("--meta-only", action="store_true",
+                    help="rebuild meta.json from existing public/data/*.json and exit")
+    args = ap.parse_args()
+
     cfg = load_config()
     enabled = cfg.get("enabled", [])
+
+    if args.meta_only:
+        build_meta(cfg)
+        return
+
+    # Select this shard's zones (round-robin keeps the heavy NL zone alone-ish).
+    my_zones = [c for i, c in enumerate(enabled) if i % args.shards == args.shard]
     d = cfg["defaults"]
-    # Fetch the daily commodity proxies once and reuse across all zones.
     gas = ingest.fetch_yahoo_daily(d["gas_symbol"])
     co2 = ingest.fetch_yahoo_daily(d["co2_symbol"])
-    meta = {"generated_at": pd.Timestamp.now(tz="UTC").isoformat(), "zones": []}
-    for code in enabled:
+    for code in my_zones:
         try:
             r = run_zone(code, cfg, gas=gas, co2=co2)
-            meta["zones"].append({"code": code, "name": r.get("name", code),
-                                  "priced": r.get("priced", False),
-                                  "entsoe_available": r.get("entsoe_available", False)})
             print(f"[{code}] history={'y' if r.get('history') else 'n'} "
                   f"forecast={'y' if r.get('forecast') else 'n'} "
                   f"err={r.get('error', '-')}")
         except Exception as e:  # keep other zones going
-            meta["zones"].append({"code": code, "name": code, "error": str(e)})
             print(f"[{code}] FAILED: {e}")
+    if args.shards == 1:
+        build_meta(cfg)
+    print(f"done shard {args.shard}/{args.shards} ->", OUT)
+
+
+def build_meta(cfg):
+    """Build meta.json from whatever zone JSONs are present in public/data."""
+    enabled = cfg.get("enabled", [])
+    zones = []
+    for code in enabled:
+        fp = OUT / f"{code}.json"
+        if not fp.exists():
+            continue
+        try:
+            z = json.loads(fp.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        zones.append({"code": code, "name": z.get("name", code),
+                      "priced": z.get("priced", False),
+                      "entsoe_available": z.get("entsoe_available", False)})
     OUT.mkdir(parents=True, exist_ok=True)
+    meta = {"generated_at": pd.Timestamp.now(tz="UTC").isoformat(), "zones": zones}
     with open(OUT / "meta.json", "w", encoding="utf-8") as f:
         json.dump(meta, f, separators=(",", ":"))
-    print("done ->", OUT)
+    print(f"meta.json -> {len(zones)} zones")
 
 
 if __name__ == "__main__":

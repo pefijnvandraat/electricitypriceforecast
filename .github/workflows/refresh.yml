@@ -2,7 +2,7 @@ name: Refresh forecast & deploy
 
 on:
   schedule:
-    - cron: "30 12 * * *"     # daily 12:30 UTC (14:30 CET) - after the ~12:45 CET day-ahead publication
+    - cron: "30 12 * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -17,29 +17,54 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  build-deploy:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Build shard ${{ matrix.shard }}
+        env:
+          ENTSOE_TOKEN: ${{ secrets.ENTSOE_TOKEN }}
+        run: python -m forecaster.run --shard ${{ matrix.shard }} --shards 8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-${{ matrix.shard }}
+          path: public/data/*.json
+          if-no-files-found: ignore
+          retention-days: 1
+
+  deploy:
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-
       - run: pip install -r requirements.txt
-
-      - name: Build forecast data
-        env:
-          ENTSOE_TOKEN: ${{ secrets.ENTSOE_TOKEN }}
-        run: python -m forecaster.run
-
+      - name: Collect shard data
+        uses: actions/download-artifact@v4
+        with:
+          pattern: data-*
+          merge-multiple: true
+          path: public/data
+      - name: Build meta.json
+        run: python -m forecaster.run --meta-only
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
