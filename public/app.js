@@ -245,8 +245,7 @@ function render() {
   const histPts = [];
   (h.time || []).forEach((t, i) => {
     const d = new Date(t);
-    // History = past actuals only (up to "now"); the forward area is the forecast.
-    if (d >= histCut && d <= now) { const v = (h[hKey] || [])[i]; if (v != null) histPts.push([t, v]); }
+    if (d >= histCut) { const v = (h[hKey] || [])[i]; if (v != null) histPts.push([t, v]); }
   });
 
   // forecast (plot ALL points; the visible horizon is controlled by xAxis max / zoom)
@@ -285,7 +284,7 @@ function render() {
     const ePts = [];
     (h.time || []).forEach((t, i) => {
       const d = new Date(t);
-      if (d < histCut || d > now) return;
+      if (d < histCut) return;
       const v = (h[eKey] || [])[i];
       if (v != null) ePts.push([t, v]);
     });
