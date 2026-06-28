@@ -254,8 +254,12 @@ function render() {
   }, true);
 
   const loc = lang;
+  const ds = $('datastamp');
+  if (ds) ds.textContent = T('data_of') + ': ' + new Date(now).toLocaleString(loc,
+    { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+
   const bits = [];
-  bits.push(T('gen') + ': ' + new Date(now).toLocaleString(loc));
+  bits.push(T('gen') + ': ' + new Date(now).toLocaleString(loc, { hour12: false }));
   bits.push(T('psrc'));
   if (current.mae_eur_mwh != null) bits.push('MAE: \u20ac ' + current.mae_eur_mwh + '/MWh');
   if (current.priced && current.taxes)
