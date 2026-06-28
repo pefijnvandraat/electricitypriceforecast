@@ -42,8 +42,8 @@ def _hod_local(index, tz):
 # --------------------------------------------------------------------------- #
 # State persistence
 # --------------------------------------------------------------------------- #
-def load_state(code):
-    fp = STATE_DIR / f"{code}.json"
+def load_state(code, read_dir=None):
+    fp = pathlib.Path(read_dir or STATE_DIR) / f"{code}.json"
     if fp.exists():
         try:
             return json.loads(fp.read_text(encoding="utf-8"))
@@ -52,9 +52,10 @@ def load_state(code):
     return {"pred_log": {}, "updated": None}
 
 
-def save_state(code, state):
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    (STATE_DIR / f"{code}.json").write_text(
+def save_state(code, state, write_dir=None):
+    d = pathlib.Path(write_dir or STATE_DIR)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{code}.json").write_text(
         json.dumps(state, separators=(",", ":")), encoding="utf-8")
 
 

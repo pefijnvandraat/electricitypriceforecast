@@ -15,7 +15,10 @@ import yaml
 from . import features, ingest, learn, model, taxes
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-OUT = ROOT / "public" / "data"
+OUT = pathlib.Path(os.environ.get("FORECAST_OUT") or (ROOT / "public" / "data"))
+# Previously-committed state is always read from the canonical location, even when
+# a sharded build writes its fresh output to a clean per-shard directory.
+STATE_READ = ROOT / "public" / "data" / "state"
 
 
 def load_config():
@@ -119,11 +122,11 @@ def run_zone(code, cfg, gas=None, co2=None):
         # Genuine out-of-sample bias from a held-out tail (captures peak underestimation).
         ho_idx, ho_true, ho_pred = model.holdout_predict(x_tr, y_tr, days=21)
         bias = learn.oos_bias(ho_idx, ho_true, ho_pred, z["timezone"])
-        state = learn.load_state(code)
+        state = learn.load_state(code, read_dir=STATE_READ)
         band_scale, learn_metrics = learn.calibrate(state, price, z["timezone"], now)
         # log the RAW predictions so future runs can measure true error
         learn.log_predictions(state, x_fut.index, preds["p10"], preds["p50"], preds["p90"])
-        learn.save_state(code, state)
+        learn.save_state(code, state, write_dir=OUT / "state")
         p10c, p50c, p90c = learn.apply(x_fut.index, preds["p10"], preds["p50"],
                                        preds["p90"], bias, band_scale, z["timezone"])
         preds = {"p10": p10c, "p50": p50c, "p90": p90c}

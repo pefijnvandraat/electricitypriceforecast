@@ -39,11 +39,12 @@ jobs:
       - name: Build shard ${{ matrix.shard }}
         env:
           ENTSOE_TOKEN: ${{ secrets.ENTSOE_TOKEN }}
+          FORECAST_OUT: shard_out
         run: python -m forecaster.run --shard ${{ matrix.shard }} --shards 8
       - uses: actions/upload-artifact@v4
         with:
           name: data-${{ matrix.shard }}
-          path: public/data
+          path: shard_out
           if-no-files-found: ignore
           retention-days: 1
 
