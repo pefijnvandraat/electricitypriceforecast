@@ -16,18 +16,26 @@ def _estimator(quantile):
 
 
 def train_predict(x_train, y_train, x_future):
-    """Train one model per quantile and predict the future frame."""
+    """Train one model per quantile and predict the future frame.
+
+    Also returns `p50_insample` (the p50 model's prediction on the training set),
+    used by the self-learning layer to measure per-hour bias.
+    """
     out = {}
+    insample = None
     for name, q in QUANTILES.items():
         model = _estimator(q)
         model.fit(x_train, y_train)
         out[name] = model.predict(x_future)
+        if name == "p50":
+            insample = model.predict(x_train)
     # guard against quantile crossing
     p10, p50, p90 = out["p10"], out["p50"], out["p90"]
     lo = np.minimum.reduce([p10, p50, p90])
     hi = np.maximum.reduce([p10, p50, p90])
     out["p10"], out["p90"] = lo, hi
     out["p50"] = np.clip(p50, lo, hi)
+    out["p50_insample"] = insample
     return out
 
 
@@ -40,3 +48,19 @@ def backtest_mae(x, y, days=7):
     model.fit(x.iloc[:-n], y.iloc[:-n])
     pred = model.predict(x.iloc[-n:])
     return float(np.mean(np.abs(pred - y.iloc[-n:].values)))
+
+
+def holdout_predict(x, y, days=21):
+    """Train on all-but-last `days`, predict the held-out tail.
+
+    Returns (index, y_true, y_pred) of the out-of-sample tail so the caller can
+    measure the model's genuine per-hour bias (in-sample residuals are ~0 for a
+    boosted model and miss the peak underestimation).
+    """
+    n = days * 24
+    if len(x) <= n + 400:
+        return None, None, None
+    model = _estimator(0.5)
+    model.fit(x.iloc[:-n], y.iloc[:-n])
+    pred = model.predict(x.iloc[-n:])
+    return x.index[-n:], y.iloc[-n:].to_numpy(), pred

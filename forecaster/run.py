@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from . import features, ingest, model, taxes
+from . import features, ingest, learn, model, taxes
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "public" / "data"
@@ -113,17 +113,34 @@ def run_zone(code, cfg, gas=None, co2=None):
 
     if len(x_tr) > 300 and len(x_fut) > 0:
         preds = model.train_predict(x_tr, y_tr, x_fut)
+        preds.pop("p50_insample", None)
+
+        # ---- self-learning: daily bias correction + uncertainty calibration ----
+        # Genuine out-of-sample bias from a held-out tail (captures peak underestimation).
+        ho_idx, ho_true, ho_pred = model.holdout_predict(x_tr, y_tr, days=21)
+        bias = learn.oos_bias(ho_idx, ho_true, ho_pred, z["timezone"])
+        state = learn.load_state(code)
+        band_scale, learn_metrics = learn.calibrate(state, price, z["timezone"], now)
+        # log the RAW predictions so future runs can measure true error
+        learn.log_predictions(state, x_fut.index, preds["p10"], preds["p50"], preds["p90"])
+        learn.save_state(code, state)
+        p10c, p50c, p90c = learn.apply(x_fut.index, preds["p10"], preds["p50"],
+                                       preds["p90"], bias, band_scale, z["timezone"])
+        preds = {"p10": p10c, "p50": p50c, "p90": p90c}
+        peak_corr = float(np.mean([bias[h] for h in learn._PEAK_HOURS]))
+        learn_metrics["peak_correction"] = round(peak_corr, 1)
+        if ho_true is not None:
+            mae_ho = round(float(np.mean(np.abs(ho_true - ho_pred))), 2)
+            learn_metrics["mae_holdout"] = mae_ho
+            result["mae_eur_mwh"] = mae_ho
+        result["learning"] = learn_metrics
+
         fc = {"time": [t.isoformat() for t in x_fut.index]}
         for key, arr in preds.items():
             fc[f"{key}_wholesale_kwh"] = _round(taxes.wholesale_kwh(arr))
             if priced:
                 fc[f"{key}_allin_kwh"] = _round(taxes.all_in_kwh(arr, z["taxes"]))
         result["forecast"] = fc
-        # Backtest is a 4th model fit; only run it for priced zones (NL) to keep
-        # the 41-zone CI run fast. Wholesale zones skip it.
-        if priced:
-            mae = model.backtest_mae(x_tr, y_tr)
-            result["mae_eur_mwh"] = round(mae, 2) if mae is not None else None
         result["train_rows"] = int(len(x_tr))
     else:
         result["forecast"] = None

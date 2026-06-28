@@ -43,7 +43,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: data-${{ matrix.shard }}
-          path: public/data/*.json
+          path: public/data
           if-no-files-found: ignore
           retention-days: 1
 
@@ -87,3 +87,4 @@ jobs:
           path: public
       - id: deploy
         uses: actions/deploy-pages@v4
+

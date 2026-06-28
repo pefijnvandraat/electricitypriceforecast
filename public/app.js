@@ -386,6 +386,15 @@ function render() {
   bits.push(T('gen') + ': ' + new Date(now).toLocaleString(loc, { hour12: false }));
   bits.push(T('psrc'));
   if (current.mae_eur_mwh != null) bits.push('MAE: \u20ac ' + current.mae_eur_mwh + '/MWh');
+  const lrn = current.learning;
+  if (lrn) {
+    let p = T('learn');
+    if (lrn.peak_correction) p += ': ' + T('learn_peak') + ' ' +
+      (lrn.peak_correction > 0 ? '+' : '') + lrn.peak_correction + ' \u20ac/MWh';
+    if (lrn.n_samples) p += ' \u00b7 ' + lrn.n_samples + ' ' + T('learn_eval') +
+      (lrn.coverage != null ? ' \u00b7 ' + Math.round(lrn.coverage * 100) + '% ' + T('learn_cov') : '');
+    bits.push(p);
+  }
   if (current.priced && current.taxes)
     bits.push('All-in = (kale + opslag + energiebelasting) \u00d7 1,' + current.taxes.btw_pct +
       '; heffingskorting \u20ac ' + current.taxes.belastingvermindering_eur_per_jaar + '/jaar');
