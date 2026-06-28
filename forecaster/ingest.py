@@ -1,7 +1,8 @@
 """Data ingest from public interfaces only.
 
 Sources (all public, tested):
-- ENTSO-E Transparency Platform  -> day-ahead price (target). Needs a free token.
+- Energy-Charts (Fraunhofer ISE) -> day-ahead price (PRIMARY target). No token.
+- ENTSO-E Transparency Platform  -> day-ahead price (OPTIONAL validation). Needs a free token.
 - Open-Meteo archive + forecast  -> weather features (no key, 16-day horizon).
 - Yahoo Finance (unofficial)      -> TTF gas (EUR) and KRBN carbon proxy.
 
@@ -18,6 +19,7 @@ import numpy as np
 import pandas as pd
 import requests
 
+ENERGY_CHARTS_PRICE = "https://api.energy-charts.info/price"
 ENTSOE_BASE = "https://web-api.tp.entsoe.eu/api"
 OM_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 OM_FORECAST = "https://api.open-meteo.com/v1/forecast"
@@ -59,6 +61,43 @@ def _get(url, params=None, timeout=90, retries=5, throttle=True):
     if last_exc is not None:
         raise last_exc
     return r
+
+
+# --------------------------------------------------------------------------- #
+# Energy-Charts day-ahead prices (PRIMARY, no token)
+# --------------------------------------------------------------------------- #
+def fetch_energy_charts_prices(bzn, start_dt, end_dt):
+    """Hourly (UTC) day-ahead price series from Energy-Charts for a bidding zone.
+
+    Public, token-free (CC BY 4.0, Bundesnetzagentur/SMARD). Recent data may be
+    quarter-hourly; we resample to hourly means for a consistent index.
+    """
+    empty = pd.DataFrame(columns=["price_eur_mwh"]).set_index(pd.DatetimeIndex([], tz="UTC"))
+    frames = []
+    cur = start_dt
+    while cur < end_dt:
+        chunk_end = min(cur + pd.Timedelta(days=370), end_dt)
+        params = {"bzn": bzn,
+                  "start": cur.strftime("%Y-%m-%d"),
+                  "end": chunk_end.strftime("%Y-%m-%d")}
+        try:
+            r = _get(ENERGY_CHARTS_PRICE, params=params, timeout=90)
+            if r.status_code == 200:
+                j = r.json()
+                secs, prices = j.get("unix_seconds"), j.get("price")
+                if secs and prices:
+                    d = pd.DataFrame({
+                        "ts": pd.to_datetime(secs, unit="s", utc=True),
+                        "price_eur_mwh": pd.to_numeric(prices, errors="coerce"),
+                    }).dropna()
+                    frames.append(d)
+        except (requests.RequestException, ValueError):
+            pass
+        cur = chunk_end
+    if not frames:
+        return empty
+    df = pd.concat(frames).drop_duplicates("ts").set_index("ts").sort_index()
+    return df.resample("1h").mean()
 
 
 # --------------------------------------------------------------------------- #

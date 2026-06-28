@@ -33,9 +33,14 @@ def run_zone(code, cfg):
     now = pd.Timestamp.now(tz="UTC").floor("h")
     start = now - pd.Timedelta(days=d["history_days_export"])
 
-    price = (ingest.fetch_dayahead_prices(z["entsoe_eic"], start,
-                                          now + pd.Timedelta(days=2), token)["price_eur_mwh"]
-             if token else pd.Series(dtype=float))
+    # PRIMARY price source: Energy-Charts (token-free)
+    price = ingest.fetch_energy_charts_prices(z["entsoe_eic_bzn"], start,
+                                              now + pd.Timedelta(days=2))["price_eur_mwh"]
+    # OPTIONAL validation: ENTSO-E (only when a token is configured)
+    entsoe = (ingest.fetch_dayahead_prices(z["entsoe_eic"], start,
+                                           now + pd.Timedelta(days=2), token)["price_eur_mwh"]
+              if token else pd.Series(dtype=float))
+
     weather = ingest.fetch_weather(z["weather_points"], start.date(), now.date())
     gas = ingest.fetch_yahoo_daily(d["gas_symbol"])
     co2 = ingest.fetch_yahoo_daily(d["co2_symbol"])
@@ -47,7 +52,8 @@ def run_zone(code, cfg):
         "zone": code, "name": z["name"], "priced": priced,
         "generated_at": now.isoformat(), "timezone": z["timezone"],
         "history_days": d["history_days_export"], "horizon_days": d["forecast_horizon_days"],
-        "unit": "EUR/kWh",
+        "unit": "EUR/kWh", "price_source": "energy-charts",
+        "entsoe_available": bool(token and len(entsoe.dropna()) > 0),
     }
     if priced:
         result["taxes"] = z["taxes"]
@@ -58,19 +64,26 @@ def run_zone(code, cfg):
         return result
 
     price = price.reindex(feats.index) if len(price) else pd.Series(np.nan, index=feats.index)
+    entsoe = entsoe.reindex(feats.index) if len(entsoe) else pd.Series(np.nan, index=feats.index)
 
-    # ---- history (actual published day-ahead prices) ----
+    # ---- history (actual published day-ahead prices, primary = Energy-Charts) ----
     hist = price.dropna()
     if len(hist):
         h = {"time": [t.isoformat() for t in hist.index],
              "wholesale_kwh": _round(taxes.wholesale_kwh(hist.values))}
         if priced:
             h["allin_kwh"] = _round(taxes.all_in_kwh(hist.values, z["taxes"]))
+        # ENTSO-E validation series aligned to the same timestamps (may contain nulls)
+        if result["entsoe_available"]:
+            ev = entsoe.reindex(hist.index)
+            h["entsoe_wholesale_kwh"] = _round(taxes.wholesale_kwh(ev.values))
+            if priced:
+                h["entsoe_allin_kwh"] = _round(taxes.all_in_kwh(ev.values, z["taxes"]))
         result["history"] = h
     else:
         result["history"] = None
 
-    # ---- forecast ----
+    # ---- forecast (model trained on the primary price series) ----
     cols = features.FEATURES
     valid = feats[cols].notna().all(axis=1)
     train_mask = valid & price.notna()
@@ -93,7 +106,7 @@ def run_zone(code, cfg):
         result["train_rows"] = int(len(x_tr))
     else:
         result["forecast"] = None
-        result["error"] = "missing_ENTSOE_TOKEN" if not token else "insufficient_data"
+        result["error"] = "no_price_data" if not len(hist) else "insufficient_data"
 
     _write(code, result)
     return result
@@ -113,7 +126,8 @@ def main():
         try:
             r = run_zone(code, cfg)
             meta["zones"].append({"code": code, "name": r.get("name", code),
-                                  "priced": r.get("priced", False)})
+                                  "priced": r.get("priced", False),
+                                  "entsoe_available": r.get("entsoe_available", False)})
             print(f"[{code}] history={'y' if r.get('history') else 'n'} "
                   f"forecast={'y' if r.get('forecast') else 'n'} "
                   f"err={r.get('error', '-')}")

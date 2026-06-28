@@ -16,6 +16,7 @@ zones:
   NL:
     name: "Nederland"
     entsoe_eic: "10YNL----------L"   # single bidding zone (1:1 with the country)
+    entsoe_eic_bzn: "NL"             # Energy-Charts bidding-zone code (primary price source)
     timezone: "Europe/Amsterdam"
     holidays: "NL"
     priced: true

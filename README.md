@@ -8,15 +8,18 @@ GitHub Action computes the forecast and publishes a static site to GitHub Pages.
 
 - Forecasts the **dynamic consumer electricity price** per hour, up to ~16 days ahead.
 - Trains on **>= 1 year** of history of the underlying drivers.
-- Web page lets the user set the **look-back window** and **forecast window**, and
-  toggle between the **kale marktprijs** (wholesale) and the **all-in** price
-  (incl. energy tax + VAT) for fully-priced zones.
+- Web page lets the user set the **look-back window** and **forecast window**, toggle
+  between the **wholesale** and **all-in** price (incl. energy tax + VAT) for
+  fully-priced zones, switch the **UI language** (all 24 official EU languages), and
+  flip between **dark / light** theme. An optional **ENTSO-E validation** overlay
+  (off by default) appears once an ENTSO-E token is configured.
 
 ## Data sources (public interfaces only)
 
 | Variable | Source | Notes |
 |---|---|---|
-| Day-ahead price (target) | ENTSO-E Transparency Platform | free token, XML |
+| Day-ahead price (primary target) | Energy-Charts (Fraunhofer ISE) | **no token**, CC BY 4.0 |
+| Day-ahead price (optional validation) | ENTSO-E Transparency Platform | free token, XML; off by default |
 | Weather (wind/solar/temp/cloud) | Open-Meteo archive + forecast | no key, 16-day horizon |
 | Gas (TTF) | Yahoo Finance `TTF=F` | EUR, daily |
 | CO2 (EU-ETS proxy) | Yahoo Finance `KRBN` | daily |
@@ -27,11 +30,13 @@ GitHub Action computes the forecast and publishes a static site to GitHub Pages.
 ```
 GitHub Actions (cron, daily)                Static site (GitHub Pages)
   ingest -> features -> train -> predict  ->  public/data/<zone>.json
-  (ENTSOE_TOKEN as Actions secret)             index.html + app.js (ECharts)
+  (Energy-Charts primary;                      index.html + app.js (ECharts)
+   ENTSOE_TOKEN optional validation)           i18n.js (24 EU languages)
 ```
 
 The model is a scikit-learn `HistGradientBoostingRegressor` with quantile loss
-(p10 / p50 / p90) so the chart shows an uncertainty band.
+(p10 / p50 / p90) so the chart shows an uncertainty band. The primary price source
+needs no token, so the site produces forecasts even before any ENTSO-E token exists.
 
 ## Configuration
 
@@ -41,13 +46,15 @@ are fetched and published. The Netherlands (`NL`) is fully pre-filled with verif
 
 ## Setup
 
-1. Create a free ENTSO-E account at https://transparency.entsoe.eu and request an
-   API token (Account Settings -> *Generate a new token*, or email the service desk).
-2. Add it as a repository secret named `ENTSOE_TOKEN`
-   (`gh secret set ENTSOE_TOKEN`).
-3. Enable Pages with **Source = GitHub Actions**.
-4. Run the **Refresh forecast & deploy** workflow (or wait for the daily schedule).
+1. Enable Pages with **Source = GitHub Actions**.
+2. Run the **Refresh forecast & deploy** workflow (or wait for the daily schedule).
+   This already works with no token (Energy-Charts is the primary source).
+3. *(Optional)* To enable the ENTSO-E validation overlay: create a free account at
+   https://transparency.entsoe.eu, request an API token, and add it as a repository
+   secret named `ENTSOE_TOKEN` (`gh secret set ENTSOE_TOKEN`). The toggle then appears
+   on the page, defaulting to off.
 
 ## License
 
-Code: see [LICENSE](./LICENSE). Data attribution: ENTSO-E, Open-Meteo, Ember/Yahoo.
+Code: see [LICENSE](./LICENSE). Data attribution: Energy-Charts (Fraunhofer ISE,
+CC BY 4.0), ENTSO-E, Open-Meteo, Yahoo Finance.

@@ -1,32 +1,51 @@
 <!doctype html>
-<html lang="nl">
+<html lang="nl" data-theme="dark">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Stroomprijs voorspeller</title>
+  <title data-i18n="t">Stroomprijs voorspeller</title>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
   <header>
-    <h1>Stroomprijs voorspeller</h1>
-    <p class="sub">Dynamische consumentenprijs &middot; uitsluitend publieke data &middot; dagelijks ververst</p>
+    <div class="titlebar">
+      <div>
+        <h1 data-i18n="t">Stroomprijs voorspeller</h1>
+        <p class="sub" data-i18n="s">Dynamische consumentenprijs &middot; uitsluitend publieke data &middot; dagelijks ververst</p>
+      </div>
+      <div class="utility">
+        <label class="util">
+          <span aria-hidden="true">&#127760;</span>
+          <select id="lang" aria-label="Language"></select>
+        </label>
+        <button id="themeBtn" class="util themebtn" type="button" aria-label="Theme">
+          <span id="themeIcon">&#127769;</span>
+        </button>
+      </div>
+    </div>
   </header>
 
   <section class="controls">
-    <label>Zone
+    <label><span data-i18n="zone">Zone</span>
       <select id="zone"></select>
     </label>
-    <label>Prijs
+    <label><span data-i18n="price">Prijs</span>
       <select id="mode">
-        <option value="allin">All-in (incl. belasting)</option>
-        <option value="wholesale">Kale marktprijs</option>
+        <option value="allin" data-i18n="allin">All-in (incl. belasting)</option>
+        <option value="wholesale" data-i18n="whole">Kale marktprijs</option>
       </select>
     </label>
-    <label>Terugkijken: <strong id="histLabel">30</strong> dagen
-      <input type="range" id="hist" min="1" max="730" value="30"/>
+    <label title="" data-i18n-title="tip_hist"><span data-i18n="back">Terugkijken</span>: <strong id="histLabel">1</strong> <span data-i18n="days">dagen</span>
+      <input type="range" id="hist" min="1" max="730" value="1"/>
     </label>
-    <label>Vooruit: <strong id="fcLabel">7</strong> dagen
+    <label><span data-i18n="fwd">Vooruit</span>: <strong id="fcLabel">7</strong> <span data-i18n="days">dagen</span>
       <input type="range" id="fc" min="1" max="16" value="7"/>
+    </label>
+    <label id="entsoeWrap" class="toggle" hidden><span data-i18n="val">ENTSO-E validatie</span>
+      <span class="switch">
+        <input type="checkbox" id="entsoe"/>
+        <span class="slider"></span>
+      </span>
     </label>
   </section>
 
@@ -34,6 +53,7 @@
   <footer id="meta">Laden&hellip;</footer>
 
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
