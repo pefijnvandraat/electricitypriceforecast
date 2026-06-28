@@ -2,7 +2,7 @@ name: Refresh forecast & deploy
 
 on:
   schedule:
-    - cron: "30 5 * * *"      # daily 05:30 UTC (after day-ahead prices are published)
+    - cron: "30 12 * * *"     # daily 12:30 UTC (14:30 CET) - after the ~12:45 CET day-ahead publication
   workflow_dispatch:
   push:
     branches: [main]
