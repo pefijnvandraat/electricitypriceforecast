@@ -8,8 +8,10 @@ QUANTILES = {"p10": 0.1, "p50": 0.5, "p90": 0.9}
 def _estimator(quantile):
     return HistGradientBoostingRegressor(
         loss="quantile", quantile=quantile,
-        max_iter=400, learning_rate=0.05,
-        l2_regularization=1.0, random_state=42,
+        max_iter=300, learning_rate=0.06,
+        max_leaf_nodes=31, l2_regularization=1.0,
+        early_stopping=True, validation_fraction=0.1,
+        n_iter_no_change=15, random_state=42,
     )
 
 

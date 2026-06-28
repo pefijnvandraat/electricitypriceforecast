@@ -42,7 +42,11 @@ def run_zone(code, cfg, gas=None, co2=None):
                                            now + pd.Timedelta(days=2), token)["price_eur_mwh"]
               if (token and eic) else pd.Series(dtype=float))
 
-    weather = ingest.fetch_weather(z["weather_points"], start.date(), now.date())
+    # Weather is only needed for the training window + forecast, not the full
+    # 730-day price-history export. Fetch a shorter window to keep the run fast.
+    train_days = d.get("history_days_train", 365)
+    wx_start = now - pd.Timedelta(days=train_days + 10)
+    weather = ingest.fetch_weather(z["weather_points"], wx_start.date(), now.date())
     if gas is None:
         gas = ingest.fetch_yahoo_daily(d["gas_symbol"])
     if co2 is None:
@@ -66,7 +70,9 @@ def run_zone(code, cfg, gas=None, co2=None):
         _write(code, result)
         return result
 
-    price = price.reindex(feats.index) if len(price) else pd.Series(np.nan, index=feats.index)
+    # Keep the full price series for the (730-day) history display; build a
+    # feature-aligned copy only for training/validation.
+    price_feat = price.reindex(feats.index) if len(price) else pd.Series(np.nan, index=feats.index)
     entsoe = entsoe.reindex(feats.index) if len(entsoe) else pd.Series(np.nan, index=feats.index)
 
     # ---- history (actual published day-ahead prices, primary = Energy-Charts) ----
@@ -89,11 +95,15 @@ def run_zone(code, cfg, gas=None, co2=None):
     # ---- forecast (model trained on the primary price series) ----
     cols = features.FEATURES
     valid = feats[cols].notna().all(axis=1)
-    train_mask = valid & price.notna()
+    train_mask = valid & price_feat.notna()
+    # Train on the most recent `history_days_train` days (full seasonality with
+    # fewer rows keeps the 41-zone run fast). Export history stays longer.
+    train_cutoff = now - pd.Timedelta(days=d.get("history_days_train", 365))
+    train_mask = train_mask & (feats.index >= train_cutoff)
     horizon_end = now + pd.Timedelta(days=d["forecast_horizon_days"])
     fut_mask = valid & (feats.index > now) & (feats.index <= horizon_end)
 
-    x_tr, y_tr = feats.loc[train_mask, cols], price.loc[train_mask]
+    x_tr, y_tr = feats.loc[train_mask, cols], price_feat.loc[train_mask]
     x_fut = feats.loc[fut_mask, cols]
 
     if len(x_tr) > 300 and len(x_fut) > 0:
@@ -104,8 +114,11 @@ def run_zone(code, cfg, gas=None, co2=None):
             if priced:
                 fc[f"{key}_allin_kwh"] = _round(taxes.all_in_kwh(arr, z["taxes"]))
         result["forecast"] = fc
-        mae = model.backtest_mae(x_tr, y_tr)
-        result["mae_eur_mwh"] = round(mae, 2) if mae is not None else None
+        # Backtest is a 4th model fit; only run it for priced zones (NL) to keep
+        # the 41-zone CI run fast. Wholesale zones skip it.
+        if priced:
+            mae = model.backtest_mae(x_tr, y_tr)
+            result["mae_eur_mwh"] = round(mae, 2) if mae is not None else None
         result["train_rows"] = int(len(x_tr))
     else:
         result["forecast"] = None

@@ -14,7 +14,7 @@ defaults:
   gas_symbol: "TTF=F"
   co2_symbol: "KRBN"
   history_days_export: 730
-  history_days_train: 730
+  history_days_train: 365    # training window (1 year: full seasonality, fast)
   forecast_horizon_days: 16
 
 zones:
