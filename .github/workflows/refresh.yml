@@ -11,7 +11,7 @@ on:
       - "LICENSE"
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -20,7 +20,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Heavy 41-zone rebuild runs ONLY on the daily schedule or manual dispatch.
+  # Frontend pushes skip this and deploy the data already committed in the repo.
   build:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -46,6 +49,7 @@ jobs:
 
   deploy:
     needs: build
+    if: always()
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -57,14 +61,26 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Collect shard data
+      # Fresh shard data is only present after a scheduled/dispatch build.
+      - name: Collect fresh shard data
+        if: needs.build.result == 'success'
         uses: actions/download-artifact@v4
         with:
           pattern: data-*
           merge-multiple: true
           path: public/data
-      - name: Build meta.json
+      - name: Rebuild meta.json
         run: python -m forecaster.run --meta-only
+      - name: Commit refreshed data
+        if: needs.build.result == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data
+          if ! git diff --cached --quiet; then
+            git commit -m "Refresh forecast data [skip ci]"
+            git push
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

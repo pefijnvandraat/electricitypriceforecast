@@ -99,9 +99,11 @@ async function loadZone(code) {
   render();
 }
 
-// EV charging optimizer: per day, find the cheapest contiguous block of the
-// number of hours needed to add the requested charge. Returns chart markAreas
-// and renders a per-day list. Operates on the forecast p50 series (`med`).
+// EV charging optimizer.
+// - No target: per day, the cheapest contiguous block of the hours needed.
+// - With target datetime: pick the cheapest hours (anywhere up to the target)
+//   that together reach the requested charge for the lowest overall cost.
+// Operates on the forecast p50 series (`med`). Returns chart markAreas.
 function computeEvWindows(med, fcCut) {
   const res = document.getElementById('evResult');
   if (!document.getElementById('evOn').checked || !med || !med.length) {
@@ -113,9 +115,65 @@ function computeEvWindows(med, fcCut) {
   const pow = Math.max(0.1, +document.getElementById('evPow').value || 0.1);
   const energy = batt * pct / 100;                         // kWh to add
   const hoursNeeded = Math.max(1, Math.ceil(energy / pow));
+  const energyPerHour = energy / hoursNeeded;
 
-  const pts = med.map(([iso, v]) => ({ t: new Date(iso), iso, v }))
+  const targetRaw = document.getElementById('evTarget').value;
+  const target = targetRaw ? new Date(targetRaw) : null;
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const hh = (d) => pad(d.getHours()) + ':' + pad(d.getMinutes());
+  const dlabel = (d) => d.toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' });
+
+  let pts = med.map(([iso, v]) => ({ t: new Date(iso), iso, v }))
     .filter((p) => isFinite(p.v) && (!fcCut || p.t <= fcCut));
+
+  // ---- TARGET MODE: cheapest hours until the deadline ----
+  if (target) {
+    const avail = pts.filter((p) => p.t <= target).sort((a, b) => a.t - b.t);
+    if (res) {
+      if (!avail.length) {
+        res.innerHTML = '<div class="ev-head ev-warn">' + T('ev_target_past') + '</div>';
+        return [];
+      }
+    }
+    const w = Math.min(hoursNeeded, avail.length);
+    const enough = avail.length >= hoursNeeded;
+    // pick the w cheapest hours, then restore chronological order
+    const chosen = [...avail].sort((a, b) => a.v - b.v).slice(0, w)
+      .sort((a, b) => a.t - b.t);
+    // group consecutive picked hours into windows
+    const windows = [], rows = [];
+    let i = 0;
+    while (i < chosen.length) {
+      let j = i;
+      while (j + 1 < chosen.length &&
+             chosen[j + 1].t - chosen[j].t === 3600e3) j++;
+      const sP = chosen[i], eP = chosen[j];
+      const end = new Date(eP.t.getTime() + 3600e3);
+      windows.push({ startIso: sP.iso, endIso: end.toISOString() });
+      let sum = 0; for (let k = i; k <= j; k++) sum += chosen[k].v;
+      rows.push({ start: sP.t, end, hours: j - i + 1, avg: sum / (j - i + 1) });
+      i = j + 1;
+    }
+    const totalCost = chosen.reduce((s, p) => s + p.v * energyPerHour, 0);
+    if (res) {
+      let html = '<div class="ev-head">' + T('ev_by') + ' ' + dlabel(target) + ' ' + hh(target) +
+        ' &middot; <strong>' + w + ' ' + T('ev_hours') + '</strong> &middot; ' + energy.toFixed(1) + ' kWh' +
+        ' &middot; ' + T('ev_total') + ' <strong>' + fmt(totalCost) + '</strong></div>';
+      if (!enough) html += '<div class="ev-warn">' + T('ev_short') + '</div>';
+      html += '<ul class="ev-list">';
+      rows.forEach((r) => {
+        html += '<li><span class="ev-day">' + dlabel(r.start) + '</span>' +
+          '<span class="ev-win">' + hh(r.start) + '\u2013' + hh(r.end) + '</span>' +
+          '<span class="ev-cost">' + r.hours + ' ' + T('ev_hours') + ' &middot; \u2300 ' + fmt(r.avg) + '</span></li>';
+      });
+      html += '</ul>';
+      res.innerHTML = html;
+    }
+    return windows;
+  }
+
+  // ---- DEFAULT MODE: cheapest contiguous block per day ----
   const byDay = new Map();
   pts.forEach((p) => {
     const k = p.t.getFullYear() + '-' + p.t.getMonth() + '-' + p.t.getDate();
@@ -123,8 +181,6 @@ function computeEvWindows(med, fcCut) {
     byDay.get(k).push(p);
   });
 
-  const pad = (n) => String(n).padStart(2, '0');
-  const hh = (d) => pad(d.getHours()) + ':' + pad(d.getMinutes());
   const windows = [], rows = [];
   [...byDay.values()].forEach((dayPts) => {
     dayPts.sort((a, b) => a.t - b.t);
@@ -147,8 +203,7 @@ function computeEvWindows(med, fcCut) {
     let html = '<div class="ev-head">' + T('ev_need') + ': <strong>' + hoursNeeded +
       ' ' + T('ev_hours') + '</strong> &middot; ' + energy.toFixed(1) + ' kWh</div><ul class="ev-list">';
     rows.forEach((r) => {
-      const day = r.day.toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' });
-      html += '<li><span class="ev-day">' + day + '</span>' +
+      html += '<li><span class="ev-day">' + dlabel(r.day) + '</span>' +
         '<span class="ev-win">' + hh(r.start) + '\u2013' + hh(r.end) + '</span>' +
         '<span class="ev-cost">\u2300 ' + fmt(r.avg) + ' &middot; ' + fmt(r.cost) + '</span></li>';
     });
@@ -190,7 +245,8 @@ function render() {
   const histPts = [];
   (h.time || []).forEach((t, i) => {
     const d = new Date(t);
-    if (d >= histCut) { const v = (h[hKey] || [])[i]; if (v != null) histPts.push([t, v]); }
+    // History = past actuals only (up to "now"); the forward area is the forecast.
+    if (d >= histCut && d <= now) { const v = (h[hKey] || [])[i]; if (v != null) histPts.push([t, v]); }
   });
 
   // forecast (plot ALL points; the visible horizon is controlled by xAxis max / zoom)
@@ -228,7 +284,8 @@ function render() {
     const eKey = allin ? 'entsoe_allin_kwh' : 'entsoe_wholesale_kwh';
     const ePts = [];
     (h.time || []).forEach((t, i) => {
-      if (new Date(t) < histCut) return;
+      const d = new Date(t);
+      if (d < histCut || d > now) return;
       const v = (h[eKey] || [])[i];
       if (v != null) ePts.push([t, v]);
     });
@@ -343,7 +400,7 @@ function render() {
 $('entsoe').addEventListener('change', render);
 $('detail').addEventListener('change', render);
 $('evOn').addEventListener('change', () => { $('evFields').hidden = !$('evOn').checked; render(); });
-['evBatt', 'evPct', 'evPow'].forEach(id => $(id).addEventListener('input', render));
+['evBatt', 'evPct', 'evPow', 'evTarget'].forEach(id => $(id).addEventListener('input', render));
 window.addEventListener('resize', () => { if (chart) chart.resize(); if (current) render(); });
 initChart();
 buildPickers();

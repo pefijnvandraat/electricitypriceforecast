@@ -36,11 +36,11 @@
         <option value="wholesale" data-i18n="whole">Kale marktprijs</option>
       </select>
     </label>
-    <label title="" data-i18n-title="tip_hist"><span class="lab"><span data-i18n="back">Terugkijken</span>: <strong id="histLabel">1</strong> <span data-i18n="days">dagen</span></span>
-      <input type="range" id="hist" min="1" max="730" value="1"/>
+    <label title="" data-i18n-title="tip_hist"><span class="lab"><span data-i18n="back">Terugkijken</span>: <strong id="histLabel">0</strong> <span data-i18n="days">dagen</span></span>
+      <input type="range" id="hist" min="0" max="730" value="0"/>
     </label>
-    <label><span class="lab"><span data-i18n="fwd">Vooruit</span>: <strong id="fcLabel">7</strong> <span data-i18n="days">dagen</span></span>
-      <input type="range" id="fc" min="1" max="16" value="7"/>
+    <label><span class="lab"><span data-i18n="fwd">Vooruit</span>: <strong id="fcLabel">3</strong> <span data-i18n="days">dagen</span></span>
+      <input type="range" id="fc" min="1" max="16" value="3"/>
     </label>
     <label id="entsoeWrap" class="toggle" hidden><span data-i18n="val">ENTSO-E validatie</span>
       <span class="switch">
@@ -72,6 +72,9 @@
       </label>
       <label><span class="lab" data-i18n="ev_pow">Laadvermogen (kW)</span>
         <input type="number" id="evPow" min="1" max="350" step="0.5" value="11"/>
+      </label>
+      <label><span class="lab" data-i18n="ev_target">Klaar om (optioneel)</span>
+        <input type="datetime-local" id="evTarget"/>
       </label>
       <div class="ev-result" id="evResult"></div>
     </div>

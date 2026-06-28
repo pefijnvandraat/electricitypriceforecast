@@ -92,3 +92,5 @@ footer a{color:var(--hist)}
   .ev-result{flex-basis:100%}
 }
 
+
+.ev-warn{font-size:12px;color:#ffb454;margin:2px 0 4px}
