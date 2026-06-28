@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Stroomprijs voorspeller</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <header>
+    <h1>Stroomprijs voorspeller</h1>
+    <p class="sub">Dynamische consumentenprijs &middot; uitsluitend publieke data &middot; dagelijks ververst</p>
+  </header>
+
+  <section class="controls">
+    <label>Zone
+      <select id="zone"></select>
+    </label>
+    <label>Prijs
+      <select id="mode">
+        <option value="allin">All-in (incl. belasting)</option>
+        <option value="wholesale">Kale marktprijs</option>
+      </select>
+    </label>
+    <label>Terugkijken: <strong id="histLabel">30</strong> dagen
+      <input type="range" id="hist" min="1" max="730" value="30"/>
+    </label>
+    <label>Vooruit: <strong id="fcLabel">7</strong> dagen
+      <input type="range" id="fc" min="1" max="16" value="7"/>
+    </label>
+  </section>
+
+  <div id="chart"></div>
+  <footer id="meta">Laden&hellip;</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

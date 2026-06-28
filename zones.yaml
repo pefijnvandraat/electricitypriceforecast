@@ -1,0 +1,49 @@
+# Configuration for the electricity price forecaster.
+# Only zones listed in `enabled` are fetched, modelled and published.
+# A zone is shown as "all-in" (incl. taxes) only when `priced: true` and a
+# verified `taxes` block is present. Otherwise only the wholesale price is shown.
+
+enabled: [NL]
+
+defaults:
+  gas_symbol: "TTF=F"        # Yahoo Finance: Dutch TTF natural gas (EUR) - primary fuel driver
+  co2_symbol: "KRBN"         # Yahoo Finance: KraneShares Global Carbon ETF - EU-ETS proxy
+  history_days_export: 730   # history published for the look-back slider (>= 1 year)
+  history_days_train: 730    # training window
+  forecast_horizon_days: 16  # max forecast horizon (hard limit: Open-Meteo weather forecast)
+
+zones:
+  NL:
+    name: "Nederland"
+    entsoe_eic: "10YNL----------L"   # single bidding zone (1:1 with the country)
+    timezone: "Europe/Amsterdam"
+    holidays: "NL"
+    priced: true
+    weather_points:                  # capacity-weighted representative points
+      - { lat: 52.00, lon: 3.70, weight: 0.30, role: wind }   # Borssele / Hollandse Kust offshore
+      - { lat: 52.50, lon: 4.20, weight: 0.20, role: wind }   # IJmuiden Ver / North Sea
+      - { lat: 53.44, lon: 6.83, weight: 0.10, role: wind }   # Eemshaven (north)
+      - { lat: 52.50, lon: 5.60, weight: 0.15, role: wind }   # Flevoland onshore
+      - { lat: 52.10, lon: 5.18, weight: 0.15, role: solar }  # De Bilt (central: solar/temp/demand)
+      - { lat: 50.85, lon: 5.69, weight: 0.10, role: solar }  # Maastricht (south)
+    taxes:                           # verified Belastingdienst tariffs, 1 Jan 2026 (excl. BTW)
+      energiebelasting_eur_per_kwh: 0.1108        # band 1 (0-2900 kWh); bands 1-2 equal up to 10000 kWh
+      btw_pct: 21
+      belastingvermindering_eur_per_jaar: 628.96  # fixed annual reduction per connection
+      leveranciersopslag_eur_per_kwh: 0.02        # typical supplier markup (adjustable in the UI)
+      bands:
+        s1: 0.1108
+        s2: 0.1108
+        s3: 0.0807
+        s4: 0.0452
+
+  # --- Example wholesale-only zones (disabled). Add the code to `enabled` to publish.
+  # BE:
+  #   name: "Belgie"
+  #   entsoe_eic: "10YBE----------2"
+  #   timezone: "Europe/Brussels"
+  #   holidays: "BE"
+  #   priced: false
+  #   weather_points:
+  #     - { lat: 51.20, lon: 2.90, weight: 0.5, role: wind }
+  #     - { lat: 50.85, lon: 4.35, weight: 0.5, role: solar }
