@@ -206,7 +206,7 @@ function render() {
   const isMobile = window.innerWidth < 640;
 
   chart.setOption({
-    grid: { left: 48, right: 14, top: isMobile ? 54 : 30, bottom: 56 },
+    grid: { left: 48, right: 14, top: isMobile ? 54 : 30, bottom: 78 },
     legend: { top: 0, textStyle: { color: muted }, type: 'scroll',
       data: [T('lhist'), T('lval'), T('lfc'), T('lband')] },
     tooltip: {
@@ -215,22 +215,32 @@ function render() {
       axisPointer: { label: { formatter: (p) => tipFmt(p.value) } },
       formatter: (params) => {
         if (!params.length) return '';
+        const detail = $('detail').checked;
+        const bandName = T('lband');
         let html = tipFmt(params[0].axisValue) + '<br/>';
         params.forEach((p) => {
           if (!p.seriesName || p.seriesName[0] === '_') return;
+          // Default: price only (history / forecast p50 / ENTSO-E). Detail adds the band.
+          if (!detail && p.seriesName === bandName) return;
           html += p.marker + ' ' + p.seriesName + ': ' + fmt(p.value[1]) + '<br/>';
         });
         return html;
       },
     },
     dataZoom: [
-      // wheel / pinch zoom + drag; initial window = slider, zoomable to full horizon
+      // wheel / pinch zoom; throttled so it does not jump too fast
       { type: 'inside', startValue: winStart, endValue: fcCut,
-        minValueSpan: 24 * 3600 * 1000, zoomLock: false, zoomOnMouseWheel: true,
-        moveOnMouseMove: true, preventDefaultMouseMove: true },
-      { type: 'slider', startValue: winStart, endValue: fcCut, height: 16, bottom: 24,
-        borderColor: lineCol, fillerColor: bandCol,
-        handleStyle: { color: fcCol }, textStyle: { color: muted },
+        minValueSpan: 12 * 3600 * 1000, zoomLock: false, zoomOnMouseWheel: true,
+        moveOnMouseMove: false, moveOnMouseWheel: false, throttle: 90 },
+      // bottom slider: tall, with large easy-to-grab handles
+      { type: 'slider', startValue: winStart, endValue: fcCut,
+        height: 34, bottom: 16, minValueSpan: 12 * 3600 * 1000, throttle: 90,
+        borderColor: lineCol, fillerColor: bandCol, backgroundColor: 'transparent',
+        dataBackground: { lineStyle: { color: muted, opacity: 0.4 },
+          areaStyle: { color: muted, opacity: 0.12 } },
+        handleSize: '160%', moveHandleSize: 9,
+        handleStyle: { color: fcCol, borderColor: fcCol },
+        textStyle: { color: muted, fontSize: isMobile ? 10 : 12 },
         labelFormatter: (v) => { const d = new Date(v); return d.getDate() + ' ' + months[d.getMonth()]; } },
     ],
     xAxis: { type: 'time', min: winStart, max: fcEnd,
@@ -259,6 +269,7 @@ function render() {
 ['zone'].forEach(id => $(id).addEventListener('change', e => loadZone(e.target.value)));
 ['mode', 'hist', 'fc'].forEach(id => $(id).addEventListener('input', render));
 $('entsoe').addEventListener('change', render);
+$('detail').addEventListener('change', render);
 window.addEventListener('resize', () => { if (chart) chart.resize(); if (current) render(); });
 initChart();
 buildPickers();

@@ -2,49 +2,399 @@
 # Only zones listed in `enabled` are fetched, modelled and published.
 # A zone is shown as "all-in" (incl. taxes) only when `priced: true` and a
 # verified `taxes` block is present. Otherwise only the wholesale price is shown.
+#
+# Price source: Energy-Charts (Fraunhofer, no token). Every enabled zone was
+# verified to return day-ahead price data. Weather (Open-Meteo), gas (TTF) and
+# CO2 (KRBN proxy) are available everywhere, so all listed zones qualify for the
+# wholesale forecast. Consumer all-in pricing is currently verified only for NL.
 
-enabled: [NL]
+enabled: [NL,AT,BE,BG,CH,CZ,DE_LU,DK1,DK2,EE,ES,FI,FR,GR,HR,HU,IT_North,IT_Centre_North,IT_Centre_South,IT_South,IT_Sicily,IT_Sardinia,IT_Calabria,LT,LV,ME,NO1,NO2,NO3,NO4,NO5,PL,PT,RO,RS,SE1,SE2,SE3,SE4,SI,SK]
 
 defaults:
-  gas_symbol: "TTF=F"        # Yahoo Finance: Dutch TTF natural gas (EUR) - primary fuel driver
-  co2_symbol: "KRBN"         # Yahoo Finance: KraneShares Global Carbon ETF - EU-ETS proxy
-  history_days_export: 730   # history published for the look-back slider (>= 1 year)
-  history_days_train: 730    # training window
-  forecast_horizon_days: 16  # max forecast horizon (hard limit: Open-Meteo weather forecast)
+  gas_symbol: "TTF=F"
+  co2_symbol: "KRBN"
+  history_days_export: 730
+  history_days_train: 730
+  forecast_horizon_days: 16
 
 zones:
   NL:
     name: "Nederland"
-    entsoe_eic: "10YNL----------L"   # single bidding zone (1:1 with the country)
-    entsoe_eic_bzn: "NL"             # Energy-Charts bidding-zone code (primary price source)
+    entsoe_eic: "10YNL----------L"
+    entsoe_eic_bzn: "NL"
     timezone: "Europe/Amsterdam"
     holidays: "NL"
     priced: true
-    weather_points:                  # capacity-weighted representative points
-      - { lat: 52.00, lon: 3.70, weight: 0.30, role: wind }   # Borssele / Hollandse Kust offshore
-      - { lat: 52.50, lon: 4.20, weight: 0.20, role: wind }   # IJmuiden Ver / North Sea
-      - { lat: 53.44, lon: 6.83, weight: 0.10, role: wind }   # Eemshaven (north)
-      - { lat: 52.50, lon: 5.60, weight: 0.15, role: wind }   # Flevoland onshore
-      - { lat: 52.10, lon: 5.18, weight: 0.15, role: solar }  # De Bilt (central: solar/temp/demand)
-      - { lat: 50.85, lon: 5.69, weight: 0.10, role: solar }  # Maastricht (south)
-    taxes:                           # verified Belastingdienst tariffs, 1 Jan 2026 (excl. BTW)
-      energiebelasting_eur_per_kwh: 0.1108        # band 1 (0-2900 kWh); bands 1-2 equal up to 10000 kWh
+    weather_points:
+      - { lat: 52.00, lon: 3.70, weight: 0.30, role: wind }
+      - { lat: 52.50, lon: 4.20, weight: 0.20, role: wind }
+      - { lat: 53.44, lon: 6.83, weight: 0.10, role: wind }
+      - { lat: 52.50, lon: 5.60, weight: 0.15, role: wind }
+      - { lat: 52.10, lon: 5.18, weight: 0.15, role: solar }
+      - { lat: 50.85, lon: 5.69, weight: 0.10, role: solar }
+    taxes:
+      energiebelasting_eur_per_kwh: 0.1108
       btw_pct: 21
-      belastingvermindering_eur_per_jaar: 628.96  # fixed annual reduction per connection
-      leveranciersopslag_eur_per_kwh: 0.02        # typical supplier markup (adjustable in the UI)
-      bands:
-        s1: 0.1108
-        s2: 0.1108
-        s3: 0.0807
-        s4: 0.0452
+      belastingvermindering_eur_per_jaar: 628.96
+      leveranciersopslag_eur_per_kwh: 0.02
+      bands: { s1: 0.1108, s2: 0.1108, s3: 0.0807, s4: 0.0452 }
 
-  # --- Example wholesale-only zones (disabled). Add the code to `enabled` to publish.
-  # BE:
-  #   name: "Belgie"
-  #   entsoe_eic: "10YBE----------2"
-  #   timezone: "Europe/Brussels"
-  #   holidays: "BE"
-  #   priced: false
-  #   weather_points:
-  #     - { lat: 51.20, lon: 2.90, weight: 0.5, role: wind }
-  #     - { lat: 50.85, lon: 4.35, weight: 0.5, role: solar }
+  AT:
+    name: "Osterreich"
+    entsoe_eic_bzn: "AT"
+    timezone: "Europe/Vienna"
+    holidays: "AT"
+    priced: false
+    weather_points:
+      - { lat: 47.6, lon: 14.1, weight: 1.0, role: mix }
+
+  BE:
+    name: "Belgie"
+    entsoe_eic_bzn: "BE"
+    timezone: "Europe/Brussels"
+    holidays: "BE"
+    priced: false
+    weather_points:
+      - { lat: 50.6, lon: 4.6, weight: 1.0, role: mix }
+
+  BG:
+    name: "Balgariya"
+    entsoe_eic_bzn: "BG"
+    timezone: "Europe/Sofia"
+    holidays: "BG"
+    priced: false
+    weather_points:
+      - { lat: 42.7, lon: 25.3, weight: 1.0, role: mix }
+
+  CH:
+    name: "Schweiz"
+    entsoe_eic_bzn: "CH"
+    timezone: "Europe/Zurich"
+    holidays: "CH"
+    priced: false
+    weather_points:
+      - { lat: 46.8, lon: 8.2, weight: 1.0, role: mix }
+
+  CZ:
+    name: "Cesko"
+    entsoe_eic_bzn: "CZ"
+    timezone: "Europe/Prague"
+    holidays: "CZ"
+    priced: false
+    weather_points:
+      - { lat: 49.8, lon: 15.5, weight: 1.0, role: mix }
+
+  DE_LU:
+    name: "Deutschland/Luxemburg"
+    entsoe_eic_bzn: "DE-LU"
+    timezone: "Europe/Berlin"
+    holidays: "DE"
+    priced: false
+    weather_points:
+      - { lat: 51.2, lon: 10.4, weight: 1.0, role: mix }
+
+  DK1:
+    name: "Danmark (Vest)"
+    entsoe_eic_bzn: "DK1"
+    timezone: "Europe/Copenhagen"
+    holidays: "DK"
+    priced: false
+    weather_points:
+      - { lat: 56.0, lon: 9.1, weight: 1.0, role: mix }
+
+  DK2:
+    name: "Danmark (Ost)"
+    entsoe_eic_bzn: "DK2"
+    timezone: "Europe/Copenhagen"
+    holidays: "DK"
+    priced: false
+    weather_points:
+      - { lat: 55.5, lon: 12.0, weight: 1.0, role: mix }
+
+  EE:
+    name: "Eesti"
+    entsoe_eic_bzn: "EE"
+    timezone: "Europe/Tallinn"
+    holidays: "EE"
+    priced: false
+    weather_points:
+      - { lat: 58.7, lon: 25.5, weight: 1.0, role: mix }
+
+  ES:
+    name: "Espana"
+    entsoe_eic_bzn: "ES"
+    timezone: "Europe/Madrid"
+    holidays: "ES"
+    priced: false
+    weather_points:
+      - { lat: 40.2, lon: -3.7, weight: 1.0, role: mix }
+
+  FI:
+    name: "Suomi"
+    entsoe_eic_bzn: "FI"
+    timezone: "Europe/Helsinki"
+    holidays: "FI"
+    priced: false
+    weather_points:
+      - { lat: 62.5, lon: 26.0, weight: 1.0, role: mix }
+
+  FR:
+    name: "France"
+    entsoe_eic_bzn: "FR"
+    timezone: "Europe/Paris"
+    holidays: "FR"
+    priced: false
+    weather_points:
+      - { lat: 46.6, lon: 2.2, weight: 1.0, role: mix }
+
+  GR:
+    name: "Ellada"
+    entsoe_eic_bzn: "GR"
+    timezone: "Europe/Athens"
+    holidays: "GR"
+    priced: false
+    weather_points:
+      - { lat: 39.0, lon: 22.0, weight: 1.0, role: mix }
+
+  HR:
+    name: "Hrvatska"
+    entsoe_eic_bzn: "HR"
+    timezone: "Europe/Zagreb"
+    holidays: "HR"
+    priced: false
+    weather_points:
+      - { lat: 45.1, lon: 15.5, weight: 1.0, role: mix }
+
+  HU:
+    name: "Magyarorszag"
+    entsoe_eic_bzn: "HU"
+    timezone: "Europe/Budapest"
+    holidays: "HU"
+    priced: false
+    weather_points:
+      - { lat: 47.2, lon: 19.4, weight: 1.0, role: mix }
+
+  IT_North:
+    name: "Italia (Nord)"
+    entsoe_eic_bzn: "IT-North"
+    timezone: "Europe/Rome"
+    holidays: "IT"
+    priced: false
+    weather_points:
+      - { lat: 45.5, lon: 9.5, weight: 1.0, role: mix }
+
+  IT_Centre_North:
+    name: "Italia (Centro-Nord)"
+    entsoe_eic_bzn: "IT-Centre-North"
+    timezone: "Europe/Rome"
+    holidays: "IT"
+    priced: false
+    weather_points:
+      - { lat: 43.5, lon: 11.2, weight: 1.0, role: mix }
+
+  IT_Centre_South:
+    name: "Italia (Centro-Sud)"
+    entsoe_eic_bzn: "IT-Centre-South"
+    timezone: "Europe/Rome"
+    holidays: "IT"
+    priced: false
+    weather_points:
+      - { lat: 41.9, lon: 13.0, weight: 1.0, role: mix }
+
+  IT_South:
+    name: "Italia (Sud)"
+    entsoe_eic_bzn: "IT-South"
+    timezone: "Europe/Rome"
+    holidays: "IT"
+    priced: false
+    weather_points:
+      - { lat: 40.8, lon: 16.0, weight: 1.0, role: mix }
+
+  IT_Sicily:
+    name: "Italia (Sicilia)"
+    entsoe_eic_bzn: "IT-Sicily"
+    timezone: "Europe/Rome"
+    holidays: "IT"
+    priced: false
+    weather_points:
+      - { lat: 37.5, lon: 14.1, weight: 1.0, role: mix }
+
+  IT_Sardinia:
+    name: "Italia (Sardegna)"
+    entsoe_eic_bzn: "IT-Sardinia"
+    timezone: "Europe/Rome"
+    holidays: "IT"
+    priced: false
+    weather_points:
+      - { lat: 40.1, lon: 9.0, weight: 1.0, role: mix }
+
+  IT_Calabria:
+    name: "Italia (Calabria)"
+    entsoe_eic_bzn: "IT-Calabria"
+    timezone: "Europe/Rome"
+    holidays: "IT"
+    priced: false
+    weather_points:
+      - { lat: 38.9, lon: 16.4, weight: 1.0, role: mix }
+
+  LT:
+    name: "Lietuva"
+    entsoe_eic_bzn: "LT"
+    timezone: "Europe/Vilnius"
+    holidays: "LT"
+    priced: false
+    weather_points:
+      - { lat: 55.2, lon: 23.9, weight: 1.0, role: mix }
+
+  LV:
+    name: "Latvija"
+    entsoe_eic_bzn: "LV"
+    timezone: "Europe/Riga"
+    holidays: "LV"
+    priced: false
+    weather_points:
+      - { lat: 56.9, lon: 24.6, weight: 1.0, role: mix }
+
+  ME:
+    name: "Crna Gora"
+    entsoe_eic_bzn: "ME"
+    timezone: "Europe/Podgorica"
+    holidays: "ME"
+    priced: false
+    weather_points:
+      - { lat: 42.7, lon: 19.3, weight: 1.0, role: mix }
+
+  NO1:
+    name: "Norge (NO1, Oslo)"
+    entsoe_eic_bzn: "NO1"
+    timezone: "Europe/Oslo"
+    holidays: "NO"
+    priced: false
+    weather_points:
+      - { lat: 60.5, lon: 9.5, weight: 1.0, role: mix }
+
+  NO2:
+    name: "Norge (NO2, Kristiansand)"
+    entsoe_eic_bzn: "NO2"
+    timezone: "Europe/Oslo"
+    holidays: "NO"
+    priced: false
+    weather_points:
+      - { lat: 58.8, lon: 7.5, weight: 1.0, role: mix }
+
+  NO3:
+    name: "Norge (NO3, Trondheim)"
+    entsoe_eic_bzn: "NO3"
+    timezone: "Europe/Oslo"
+    holidays: "NO"
+    priced: false
+    weather_points:
+      - { lat: 63.0, lon: 10.5, weight: 1.0, role: mix }
+
+  NO4:
+    name: "Norge (NO4, Tromso)"
+    entsoe_eic_bzn: "NO4"
+    timezone: "Europe/Oslo"
+    holidays: "NO"
+    priced: false
+    weather_points:
+      - { lat: 68.0, lon: 18.0, weight: 1.0, role: mix }
+
+  NO5:
+    name: "Norge (NO5, Bergen)"
+    entsoe_eic_bzn: "NO5"
+    timezone: "Europe/Oslo"
+    holidays: "NO"
+    priced: false
+    weather_points:
+      - { lat: 60.7, lon: 6.5, weight: 1.0, role: mix }
+
+  PL:
+    name: "Polska"
+    entsoe_eic_bzn: "PL"
+    timezone: "Europe/Warsaw"
+    holidays: "PL"
+    priced: false
+    weather_points:
+      - { lat: 52.0, lon: 19.4, weight: 1.0, role: mix }
+
+  PT:
+    name: "Portugal"
+    entsoe_eic_bzn: "PT"
+    timezone: "Europe/Lisbon"
+    holidays: "PT"
+    priced: false
+    weather_points:
+      - { lat: 39.5, lon: -8.0, weight: 1.0, role: mix }
+
+  RO:
+    name: "Romania"
+    entsoe_eic_bzn: "RO"
+    timezone: "Europe/Bucharest"
+    holidays: "RO"
+    priced: false
+    weather_points:
+      - { lat: 45.9, lon: 25.0, weight: 1.0, role: mix }
+
+  RS:
+    name: "Srbija"
+    entsoe_eic_bzn: "RS"
+    timezone: "Europe/Belgrade"
+    holidays: "RS"
+    priced: false
+    weather_points:
+      - { lat: 44.0, lon: 20.9, weight: 1.0, role: mix }
+
+  SE1:
+    name: "Sverige (SE1, Lulea)"
+    entsoe_eic_bzn: "SE1"
+    timezone: "Europe/Stockholm"
+    holidays: "SE"
+    priced: false
+    weather_points:
+      - { lat: 65.8, lon: 21.0, weight: 1.0, role: mix }
+
+  SE2:
+    name: "Sverige (SE2, Sundsvall)"
+    entsoe_eic_bzn: "SE2"
+    timezone: "Europe/Stockholm"
+    holidays: "SE"
+    priced: false
+    weather_points:
+      - { lat: 63.0, lon: 16.0, weight: 1.0, role: mix }
+
+  SE3:
+    name: "Sverige (SE3, Stockholm)"
+    entsoe_eic_bzn: "SE3"
+    timezone: "Europe/Stockholm"
+    holidays: "SE"
+    priced: false
+    weather_points:
+      - { lat: 59.3, lon: 16.0, weight: 1.0, role: mix }
+
+  SE4:
+    name: "Sverige (SE4, Malmo)"
+    entsoe_eic_bzn: "SE4"
+    timezone: "Europe/Stockholm"
+    holidays: "SE"
+    priced: false
+    weather_points:
+      - { lat: 55.8, lon: 13.5, weight: 1.0, role: mix }
+
+  SI:
+    name: "Slovenija"
+    entsoe_eic_bzn: "SI"
+    timezone: "Europe/Ljubljana"
+    holidays: "SI"
+    priced: false
+    weather_points:
+      - { lat: 46.1, lon: 14.8, weight: 1.0, role: mix }
+
+  SK:
+    name: "Slovensko"
+    entsoe_eic_bzn: "SK"
+    timezone: "Europe/Bratislava"
+    holidays: "SK"
+    priced: false
+    weather_points:
+      - { lat: 48.7, lon: 19.5, weight: 1.0, role: mix }

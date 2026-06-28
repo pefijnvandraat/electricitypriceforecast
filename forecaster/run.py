@@ -25,7 +25,7 @@ def _round(arr, nd=4):
     return out
 
 
-def run_zone(code, cfg):
+def run_zone(code, cfg, gas=None, co2=None):
     z = cfg["zones"][code]
     d = cfg["defaults"]
     token = os.environ.get("ENTSOE_TOKEN", "").strip()
@@ -36,14 +36,17 @@ def run_zone(code, cfg):
     # PRIMARY price source: Energy-Charts (token-free)
     price = ingest.fetch_energy_charts_prices(z["entsoe_eic_bzn"], start,
                                               now + pd.Timedelta(days=2))["price_eur_mwh"]
-    # OPTIONAL validation: ENTSO-E (only when a token is configured)
-    entsoe = (ingest.fetch_dayahead_prices(z["entsoe_eic"], start,
+    # OPTIONAL validation: ENTSO-E (only when a token is configured and the zone has an EIC)
+    eic = z.get("entsoe_eic")
+    entsoe = (ingest.fetch_dayahead_prices(eic, start,
                                            now + pd.Timedelta(days=2), token)["price_eur_mwh"]
-              if token else pd.Series(dtype=float))
+              if (token and eic) else pd.Series(dtype=float))
 
     weather = ingest.fetch_weather(z["weather_points"], start.date(), now.date())
-    gas = ingest.fetch_yahoo_daily(d["gas_symbol"])
-    co2 = ingest.fetch_yahoo_daily(d["co2_symbol"])
+    if gas is None:
+        gas = ingest.fetch_yahoo_daily(d["gas_symbol"])
+    if co2 is None:
+        co2 = ingest.fetch_yahoo_daily(d["co2_symbol"])
 
     feats = features.assemble(weather, gas, co2, z["timezone"], z["holidays"])
     priced = bool(z.get("priced")) and "taxes" in z
@@ -121,10 +124,14 @@ def _write(code, result):
 def main():
     cfg = load_config()
     enabled = cfg.get("enabled", [])
+    d = cfg["defaults"]
+    # Fetch the daily commodity proxies once and reuse across all zones.
+    gas = ingest.fetch_yahoo_daily(d["gas_symbol"])
+    co2 = ingest.fetch_yahoo_daily(d["co2_symbol"])
     meta = {"generated_at": pd.Timestamp.now(tz="UTC").isoformat(), "zones": []}
     for code in enabled:
         try:
-            r = run_zone(code, cfg)
+            r = run_zone(code, cfg, gas=gas, co2=co2)
             meta["zones"].append({"code": code, "name": r.get("name", code),
                                   "priced": r.get("priced", False),
                                   "entsoe_available": r.get("entsoe_available", False)})

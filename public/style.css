@@ -22,13 +22,16 @@ h1{margin:0;font-size:22px}
 .util select{background:transparent;border:0;color:var(--ink);font-size:13px;cursor:pointer}
 .themebtn{cursor:pointer;font-size:15px;line-height:1}
 .controls{
-  display:flex;flex-wrap:wrap;gap:16px;padding:16px 24px;
+  display:flex;flex-wrap:wrap;gap:12px;padding:12px 24px;align-items:flex-start;
 }
 .controls label{
-  display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);
-  background:var(--panel);padding:10px 14px;border-radius:10px;min-width:180px;flex:1;
+  display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);
+  background:var(--panel);padding:8px 12px;border-radius:10px;min-width:180px;flex:1;
 }
 .controls label[hidden]{display:none}
+.controls .lab{white-space:nowrap}
+.controls .lab strong{color:var(--ink)}
+.controls input[type=range]{margin:2px 0 0}
 .controls strong{color:var(--ink)}
 select,input[type=range]{width:100%}
 .controls select{

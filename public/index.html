@@ -35,15 +35,21 @@
         <option value="wholesale" data-i18n="whole">Kale marktprijs</option>
       </select>
     </label>
-    <label title="" data-i18n-title="tip_hist"><span data-i18n="back">Terugkijken</span>: <strong id="histLabel">1</strong> <span data-i18n="days">dagen</span>
+    <label title="" data-i18n-title="tip_hist"><span class="lab"><span data-i18n="back">Terugkijken</span>: <strong id="histLabel">1</strong> <span data-i18n="days">dagen</span></span>
       <input type="range" id="hist" min="1" max="730" value="1"/>
     </label>
-    <label><span data-i18n="fwd">Vooruit</span>: <strong id="fcLabel">7</strong> <span data-i18n="days">dagen</span>
+    <label><span class="lab"><span data-i18n="fwd">Vooruit</span>: <strong id="fcLabel">7</strong> <span data-i18n="days">dagen</span></span>
       <input type="range" id="fc" min="1" max="16" value="7"/>
     </label>
     <label id="entsoeWrap" class="toggle" hidden><span data-i18n="val">ENTSO-E validatie</span>
       <span class="switch">
         <input type="checkbox" id="entsoe"/>
+        <span class="slider"></span>
+      </span>
+    </label>
+    <label class="toggle"><span data-i18n="detail">Details bij aanwijzen</span>
+      <span class="switch">
+        <input type="checkbox" id="detail"/>
         <span class="slider"></span>
       </span>
     </label>
