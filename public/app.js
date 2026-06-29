@@ -271,6 +271,7 @@ function render() {
   const histCol = getComputedStyle(document.documentElement).getPropertyValue('--hist').trim() || '#4aa3ff';
   const fcCol = getComputedStyle(document.documentElement).getPropertyValue('--fc').trim() || '#ff9f40';
   const bandCol = getComputedStyle(document.documentElement).getPropertyValue('--band').trim() || 'rgba(255,159,64,.18)';
+  const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#e6ecf5';
 
   const series = [
     { name: T('lhist'), type: 'line', showSymbol: false, data: histPts,
@@ -369,7 +370,7 @@ function render() {
     ],
     xAxis: { type: 'time', min: winStart, max: fcEnd,
       axisLabel: { color: muted, hideOverlap: true, formatter: axisFmt, fontSize: isMobile ? 10 : 12,
-        rich: { d: { fontWeight: 'bold', color: muted, fontSize: isMobile ? 10 : 12 } } },
+        rich: { d: { fontWeight: 'bold', color: ink, fontSize: isMobile ? 11 : 13 } } },
       splitLine: { show: false }, minInterval: 3600 * 1000, maxInterval: 12 * 3600 * 1000 },
     yAxis: { type: 'value', name: '\u20ac/kWh', scale: true,
       axisLabel: { color: muted, formatter: (v) => v.toFixed(2), fontSize: isMobile ? 10 : 12 },
