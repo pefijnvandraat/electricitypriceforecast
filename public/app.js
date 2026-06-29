@@ -405,8 +405,8 @@ function render() {
   }
   if (current.resid_demand) bits.push(T('resid'));
   if (current.priced && current.taxes)
-    bits.push('All-in = (kale + opslag + energiebelasting) \u00d7 1,' + current.taxes.btw_pct +
-      '; heffingskorting \u20ac ' + current.taxes.belastingvermindering_eur_per_jaar + '/jaar');
+    bits.push(T('allin_formula') + ' \u00d7 1,' + current.taxes.btw_pct +
+      '; ' + T('rebate') + ' \u20ac ' + current.taxes.belastingvermindering_eur_per_jaar + '/' + T('per_year'));
   if (current.error) bits.push('\u26a0 ' + current.error);
   bits.push('Energy-Charts, ENTSO-E, Open-Meteo, Yahoo Finance (TTF/KRBN).');
   $('meta').textContent = bits.join('  \u2014  ');
