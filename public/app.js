@@ -236,6 +236,7 @@ function render() {
   };
 
   const now = current.generated_at ? new Date(current.generated_at) : new Date();
+  const nowLive = new Date();
   const histCut = new Date(now.getTime() - histDays * DAY);
   const fcCut = new Date(now.getTime() + fcDays * DAY);
 
@@ -314,7 +315,13 @@ function render() {
       symbol: 'none', silent: true,
       lineStyle: { color: muted, type: 'dashed' },
       label: { show: true, color: muted, formatter: () => pad(now.getHours()) + ':' + pad(now.getMinutes()) },
-      data: [{ xAxis: now.toISOString() }],
+      data: [
+        { xAxis: now.toISOString() },
+        { xAxis: nowLive.toISOString(),
+          lineStyle: { color: '#46d39a', type: 'solid', width: 2 },
+          label: { show: true, color: '#46d39a',
+            formatter: () => T('now') + ' ' + pad(nowLive.getHours()) + ':' + pad(nowLive.getMinutes()) } },
+      ],
     },
     markArea: evWindows.length ? {
       silent: true,
