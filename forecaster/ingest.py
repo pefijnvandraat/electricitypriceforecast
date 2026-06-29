@@ -245,6 +245,94 @@ def fetch_dayahead_prices(eic, start_dt, end_dt, token):
     return df.resample("1h").mean()
 
 
+def _parse_quantity(xml_text):
+    """Parse an ENTSO-E document with <quantity> points into an hourly series."""
+    root = ET.fromstring(xml_text)
+    rows = []
+    for period in root.iter():
+        if _strip_ns(period.tag) != "Period":
+            continue
+        start = None
+        res = "PT60M"
+        points = {}
+        for el in period.iter():
+            t = _strip_ns(el.tag)
+            if t == "start" and start is None:
+                start = el.text
+            elif t == "resolution":
+                res = el.text
+            elif t == "Point":
+                pos = qty = None
+                for c in el:
+                    ct = _strip_ns(c.tag)
+                    if ct == "position":
+                        pos = int(c.text)
+                    elif ct == "quantity":
+                        qty = float(c.text)
+                if pos is not None and qty is not None:
+                    points[pos] = qty
+        if not start or not points:
+            continue
+        s0 = pd.Timestamp(start)
+        s0 = s0.tz_localize("UTC") if s0.tzinfo is None else s0.tz_convert("UTC")
+        step = _res_minutes(res)
+        for pos, q in points.items():
+            rows.append((s0 + pd.Timedelta(minutes=step * (pos - 1)), q))
+    if not rows:
+        return pd.Series(dtype=float)
+    s = pd.Series(dict(rows)).sort_index()
+    return s[~s.index.duplicated(keep="last")].resample("1h").mean()
+
+
+def fetch_entsoe_quantity(eic, start_dt, end_dt, token, document_type,
+                          process_type="A01", in_domain=False):
+    """Fetch a day-ahead quantity forecast (load A65 / wind+solar A69) as hourly UTC.
+
+    A65/A01 = day-ahead total load forecast; A69/A01 = day-ahead wind & solar
+    generation forecast (summed across types). Returns empty Series on failure.
+    """
+    frames = []
+    cur = start_dt
+    while cur < end_dt:
+        chunk_end = min(cur + pd.Timedelta(days=360), end_dt)
+        params = {
+            "securityToken": token,
+            "documentType": document_type,
+            "processType": process_type,
+            "periodStart": cur.strftime("%Y%m%d%H%M"),
+            "periodEnd": chunk_end.strftime("%Y%m%d%H%M"),
+        }
+        params["in_Domain" if in_domain else "outBiddingZone_Domain"] = eic
+        try:
+            r = _get(ENTSOE_BASE, params=params)
+            if r.status_code == 200 and "MarketDocument" in r.text:
+                s = _parse_quantity(r.text)
+                if len(s):
+                    frames.append(s)
+        except requests.RequestException:
+            pass
+        cur = chunk_end
+    if not frames:
+        return pd.Series(dtype=float)
+    s = pd.concat(frames)
+    return s[~s.index.duplicated(keep="last")].sort_index()
+
+
+def fetch_entsoe_residual_forecast(eic, start_dt, end_dt, token):
+    """Day-ahead residual-demand forecast = load forecast minus wind+solar forecast.
+
+    This is the market's own view of dispatchable demand for the next day, which
+    drives the price peak. Returns (residual, load, renewables) hourly Series.
+    """
+    load = fetch_entsoe_quantity(eic, start_dt, end_dt, token, "A65", "A01", in_domain=False)
+    gen = fetch_entsoe_quantity(eic, start_dt, end_dt, token, "A69", "A01", in_domain=True)
+    if len(load) and len(gen):
+        idx = load.index.union(gen.index)
+        resid = load.reindex(idx) - gen.reindex(idx).fillna(0)
+        return resid, load, gen
+    return pd.Series(dtype=float), load, gen
+
+
 # --------------------------------------------------------------------------- #
 # Open-Meteo weather (capacity-weighted across points)
 # --------------------------------------------------------------------------- #

@@ -90,6 +90,35 @@ def run_zone(code, cfg, gas=None, co2=None):
     else:
         result_resid = False
 
+    # ---- ENTSO-E day-ahead load + wind/solar forecast (residual-demand forecast) ----
+    # The market's own next-day residual demand drives the price peak. Available
+    # for D+1 from ENTSO-E; beyond that we fall back to a weather+calendar estimate
+    # so the feature is defined across the whole horizon. Needs a token + EIC.
+    eic_fc = z.get("entsoe_eic")
+    if token and eic_fc and not feats.empty:
+        try:
+            efc, _ld, _gn = ingest.fetch_entsoe_residual_forecast(
+                eic_fc, wx_start, now + pd.Timedelta(days=2), token)
+            efc = efc.reindex(feats.index) if len(efc) else pd.Series(dtype=float)
+            known = feats[list(features.FEATURES)].notna().all(axis=1) & efc.notna()
+            if int(known.sum()) > 500:
+                # smooth weather+calendar model of the ENTSO-E residual forecast,
+                # used to fill hours beyond D+1 (and avoid train/serve skew)
+                pred = model.predict_feature(
+                    feats.loc[known, list(features.FEATURES)], efc.loc[known].values,
+                    feats[list(features.FEATURES)])
+                blended = efc.copy()
+                blended[blended.isna()] = pred[blended.isna().values]
+                feats["entso_resid_fc"] = blended.values
+                feat_cols.append("entso_resid_fc")
+                result_entso_fc = True
+            else:
+                result_entso_fc = False
+        except Exception:
+            result_entso_fc = False
+    else:
+        result_entso_fc = False
+
     result = {
         "zone": code, "name": z["name"], "priced": priced,
         "generated_at": now.isoformat(), "timezone": z["timezone"],
@@ -153,17 +182,37 @@ def run_zone(code, cfg, gas=None, co2=None):
 
     y_tr = price_feat.loc[train_mask]
 
-    # Auto-gating: keep the extra features (residual demand + price lags) only if
-    # they actually lower this zone's out-of-sample holdout error.
+    # Auto-gating (group-wise): evaluate each optional feature group on its own and
+    # keep only the groups that lower this zone's holdout error, then combine them.
+    # This prevents a harmful group from masking a helpful one when bundled.
+    groups = {}
+    if result_resid and "resid_load" in feat_cols:
+        groups["resid"] = ["resid_load"]
+    if "lag24" in feat_cols:
+        groups["lags"] = ["lag24", "lag168", "roll7"]
+    if result_entso_fc and "entso_resid_fc" in feat_cols:
+        groups["entso"] = ["entso_resid_fc"]
+
     cols = base_cols
-    extra_ok = False
-    if len(y_tr) > 700 and len(feat_cols) > len(base_cols):
+    kept = {"resid": False, "lags": False, "entso": False}
+    if len(y_tr) > 700 and groups:
         mae_base = model.holdout_mae(feats.loc[train_mask, base_cols], y_tr, days=21)
-        mae_extra = model.holdout_mae(feats.loc[train_mask, feat_cols], y_tr, days=21)
-        if mae_base is not None and mae_extra is not None and mae_extra < mae_base * 0.99:
-            cols = feat_cols; extra_ok = True
-    result["resid_demand"] = bool(result_resid and extra_ok)
-    result["price_lags"] = bool(extra_ok)
+        chosen = list(base_cols)
+        for name, gcols in groups.items():
+            mae_g = model.holdout_mae(feats.loc[train_mask, base_cols + gcols], y_tr, days=21)
+            if mae_base is not None and mae_g is not None and mae_g < mae_base * 0.995:
+                chosen += gcols
+                kept[name] = True
+        if len(chosen) > len(base_cols):
+            # final safety check on the combined set
+            mae_comb = model.holdout_mae(feats.loc[train_mask, chosen], y_tr, days=21)
+            if mae_comb is not None and mae_base is not None and mae_comb <= mae_base:
+                cols = chosen
+            else:
+                kept = {k: False for k in kept}
+    result["resid_demand"] = bool(kept["resid"])
+    result["price_lags"] = bool(kept["lags"])
+    result["entso_forecast"] = bool(kept["entso"])
 
     x_tr = feats.loc[train_mask, cols]
     x_fut = feats.loc[fut_mask, cols]
