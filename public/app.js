@@ -416,9 +416,27 @@ function render() {
 ['mode', 'hist', 'fc'].forEach(id => $(id).addEventListener('input', render));
 $('entsoe').addEventListener('change', render);
 $('detail').addEventListener('change', render);
-$('evOn').addEventListener('change', () => { $('evFields').hidden = !$('evOn').checked; render(); });
-['evBatt', 'evPct', 'evPow', 'evTarget'].forEach(id => $(id).addEventListener('input', render));
+
+// Persist EV settings across sessions.
+const EV_KEYS = ['evOn', 'evBatt', 'evPct', 'evPow', 'evTarget'];
+function saveEv() {
+  const v = {};
+  EV_KEYS.forEach(id => { const el = $(id); v[id] = el.type === 'checkbox' ? el.checked : el.value; });
+  try { localStorage.setItem('ev', JSON.stringify(v)); } catch (e) {}
+}
+function restoreEv() {
+  let v; try { v = JSON.parse(localStorage.getItem('ev') || '{}'); } catch (e) { v = {}; }
+  EV_KEYS.forEach(id => {
+    if (v[id] == null) return;
+    const el = $(id);
+    if (el.type === 'checkbox') el.checked = v[id]; else el.value = v[id];
+  });
+  $('evFields').hidden = !$('evOn').checked;
+}
+$('evOn').addEventListener('change', () => { $('evFields').hidden = !$('evOn').checked; saveEv(); render(); });
+['evBatt', 'evPct', 'evPow', 'evTarget'].forEach(id => $(id).addEventListener('input', () => { saveEv(); render(); }));
 window.addEventListener('resize', () => { if (chart) chart.resize(); if (current) render(); });
+restoreEv();
 initChart();
 buildPickers();
 loadMeta();
