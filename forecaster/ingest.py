@@ -26,6 +26,8 @@ OM_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 OM_FORECAST = "https://api.open-meteo.com/v1/forecast"
 YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 
+ENERGYZERO = "https://api.energyzero.nl/v1/energyprices"
+
 _HOURLY_VARS = "temperature_2m,wind_speed_100m,shortwave_radiation,cloud_cover"
 _OM_COLS = ["temperature_2m", "wind_speed_100m", "shortwave_radiation", "cloud_cover"]
 
@@ -105,6 +107,41 @@ def fetch_energy_charts_prices(bzn, start_dt, end_dt):
         return empty
     df = pd.concat(frames).drop_duplicates("ts").set_index("ts").sort_index()
     return df.resample("1h").mean()
+
+
+def fetch_energyzero_prices(start_dt, end_dt):
+    """Hourly (UTC) bare wholesale day-ahead price (EUR/MWh) from EnergyZero (NL).
+
+    EnergyZero pulls EPEX spot directly, so it publishes the next day earlier than
+    Energy-Charts/ENTSO-E. Used only as an NL fallback to fill hours the primary
+    sources do not have yet. `inclBtw=false` returns the raw market price in
+    EUR/kWh; we convert to EUR/MWh. Returns empty Series on failure.
+    """
+    empty = pd.Series(dtype=float)
+    frames = []
+    cur = start_dt - pd.Timedelta(days=1)
+    while cur < end_dt + pd.Timedelta(days=1):
+        chunk_end = min(cur + pd.Timedelta(days=30), end_dt + pd.Timedelta(days=1))
+        params = {
+            "fromDate": cur.strftime("%Y-%m-%dT00:00:00.000Z"),
+            "tillDate": chunk_end.strftime("%Y-%m-%dT00:00:00.000Z"),
+            "interval": 4, "usageType": 1, "inclBtw": "false",
+        }
+        try:
+            r = _get(ENERGYZERO, params=params, timeout=60, min_interval=0.5)
+            if r.status_code == 200:
+                prices = (r.json() or {}).get("Prices", [])
+                for p in prices:
+                    ts = pd.Timestamp(p["readingDate"])
+                    ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+                    frames.append((ts, float(p["price"]) * 1000.0))
+        except (requests.RequestException, ValueError, KeyError, TypeError):
+            pass
+        cur = chunk_end
+    if not frames:
+        return empty
+    s = pd.Series(dict(frames)).sort_index()
+    return s[~s.index.duplicated(keep="last")].resample("1h").mean()
 
 
 def fetch_residual_load(country, start_dt, end_dt):

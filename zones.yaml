@@ -23,6 +23,7 @@ zones:
     entsoe_eic: "10YNL----------L"
     entsoe_eic_bzn: "NL"
     public_power_country: "nl"
+    fallback_source: "energyzero"   # fast EPEX source to fill days the EU sources lack yet
     timezone: "Europe/Amsterdam"
     holidays: "NL"
     priced: true

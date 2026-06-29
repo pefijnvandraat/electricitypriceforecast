@@ -50,6 +50,26 @@ def run_zone(code, cfg, gas=None, co2=None):
                                            now + pd.Timedelta(days=2), token)["price_eur_mwh"]
               if (token and eic) else pd.Series(dtype=float))
 
+    # FALLBACK price source: fill any hours the primary source lacks (e.g. the next
+    # day before SMARD/ENTSO-E publish). Configured per zone (NL -> EnergyZero).
+    fb_used = 0
+    if z.get("fallback_source") == "energyzero":
+        try:
+            fb = ingest.fetch_energyzero_prices(start, now + pd.Timedelta(days=2))
+            if len(fb):
+                # also let ENTSO-E fill in front of EnergyZero if it has fresher data
+                if len(entsoe.dropna()):
+                    combined = entsoe.combine_first(fb)
+                else:
+                    combined = fb
+                idx = price.index.union(combined.index)
+                price = price.reindex(idx)
+                missing = price.isna()
+                fb_used = int((missing & combined.reindex(idx).notna()).sum())
+                price = price.where(~missing, combined.reindex(idx))
+        except Exception:
+            pass
+
     # Weather is only needed for the training window + forecast, not the full
     # 730-day price-history export. Fetch a shorter window to keep the run fast.
     train_days = d.get("history_days_train", 365)
@@ -125,6 +145,7 @@ def run_zone(code, cfg, gas=None, co2=None):
         "history_days": d["history_days_export"], "horizon_days": d["forecast_horizon_days"],
         "unit": "EUR/kWh", "price_source": "energy-charts",
         "entsoe_available": bool(token and len(entsoe.dropna()) > 0),
+        "fallback_hours": fb_used,
         "resid_demand": bool(result_resid),
     }
     if priced:
