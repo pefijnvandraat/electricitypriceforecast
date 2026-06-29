@@ -2,7 +2,9 @@ name: Refresh forecast & deploy
 
 on:
   schedule:
-    - cron: "0 15 * * *"      # daily 15:00 UTC (17:00 CET) - well after day-ahead publication
+    - cron: "0 13 * * *"      # 13:00 UTC
+    - cron: "0 15 * * *"      # 15:00 UTC
+    - cron: "0 17 * * *"      # 17:00 UTC (multiple runs catch late day-ahead publication / skipped schedules)
   workflow_dispatch:
   push:
     branches: [main]
