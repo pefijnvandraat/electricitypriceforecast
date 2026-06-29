@@ -336,9 +336,10 @@ function render() {
   const fcEnd = f && f.time.length ? new Date(f.time[f.time.length - 1]) : fcCut;
   const winStart = histCut;
   const isMobile = window.innerWidth < 640;
+  const locked = $('lock').checked;
 
   chart.setOption({
-    grid: { left: 48, right: 14, top: isMobile ? 54 : 30, bottom: 78 },
+    grid: { left: 48, right: 14, top: isMobile ? 54 : 30, bottom: locked ? 40 : 78 },
     legend: { top: 0, textStyle: { color: muted }, type: 'scroll',
       data: [T('lhist'), T('lval'), T('lfc'), T('lband')] },
     tooltip: {
@@ -360,12 +361,12 @@ function render() {
       },
     },
     dataZoom: [
-      // wheel / pinch zoom; throttled so it does not jump too fast
+      // wheel / pinch zoom; throttled so it does not jump too fast. Disabled when locked.
       { type: 'inside', startValue: winStart, endValue: fcCut,
-        minValueSpan: 12 * 3600 * 1000, zoomLock: false, zoomOnMouseWheel: true,
+        minValueSpan: 12 * 3600 * 1000, zoomLock: locked, zoomOnMouseWheel: !locked,
         moveOnMouseMove: false, moveOnMouseWheel: false, throttle: 90 },
-      // bottom slider: tall, with large easy-to-grab handles
-      { type: 'slider', startValue: winStart, endValue: fcCut,
+      // bottom slider: tall, with large easy-to-grab handles; hidden when locked
+      { type: 'slider', show: !locked, startValue: winStart, endValue: fcCut,
         height: 34, bottom: 16, minValueSpan: 12 * 3600 * 1000, throttle: 90,
         borderColor: lineCol, fillerColor: bandCol, backgroundColor: 'transparent',
         dataBackground: { lineStyle: { color: muted, opacity: 0.4 },
@@ -415,10 +416,9 @@ function render() {
 ['zone'].forEach(id => $(id).addEventListener('change', e => loadZone(e.target.value)));
 ['mode', 'hist', 'fc'].forEach(id => $(id).addEventListener('input', render));
 $('entsoe').addEventListener('change', render);
-$('detail').addEventListener('change', render);
 
-// Persist EV settings across sessions.
-const EV_KEYS = ['evOn', 'evBatt', 'evPct', 'evPow', 'evTarget'];
+// Persist panel toggles + EV settings across sessions.
+const EV_KEYS = ['evOn', 'evBatt', 'evPct', 'evPow', 'evTarget', 'detail', 'lock'];
 function saveEv() {
   const v = {};
   EV_KEYS.forEach(id => { const el = $(id); v[id] = el.type === 'checkbox' ? el.checked : el.value; });
@@ -433,6 +433,8 @@ function restoreEv() {
   });
   $('evFields').hidden = !$('evOn').checked;
 }
+$('detail').addEventListener('change', () => { saveEv(); render(); });
+$('lock').addEventListener('change', () => { saveEv(); render(); });
 $('evOn').addEventListener('change', () => { $('evFields').hidden = !$('evOn').checked; saveEv(); render(); });
 ['evBatt', 'evPct', 'evPow', 'evTarget'].forEach(id => $(id).addEventListener('input', () => { saveEv(); render(); }));
 window.addEventListener('resize', () => { if (chart) chart.resize(); if (current) render(); });
