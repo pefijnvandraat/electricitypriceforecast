@@ -43,6 +43,7 @@ zones:
   AT:
     name: "Osterreich"
     entsoe_eic_bzn: "AT"
+    entsoe_eic: "10YAT-APG------L"
     public_power_country: "at"
     timezone: "Europe/Vienna"
     holidays: "AT"
@@ -53,6 +54,7 @@ zones:
   BE:
     name: "Belgie"
     entsoe_eic_bzn: "BE"
+    entsoe_eic: "10YBE----------2"
     public_power_country: "be"
     timezone: "Europe/Brussels"
     holidays: "BE"
@@ -63,6 +65,7 @@ zones:
   BG:
     name: "Balgariya"
     entsoe_eic_bzn: "BG"
+    entsoe_eic: "10YCA-BULGARIA-R"
     public_power_country: "bg"
     timezone: "Europe/Sofia"
     holidays: "BG"
@@ -73,6 +76,7 @@ zones:
   CH:
     name: "Schweiz"
     entsoe_eic_bzn: "CH"
+    entsoe_eic: "10YCH-SWISSGRIDZ"
     public_power_country: "ch"
     timezone: "Europe/Zurich"
     holidays: "CH"
@@ -83,6 +87,7 @@ zones:
   CZ:
     name: "Cesko"
     entsoe_eic_bzn: "CZ"
+    entsoe_eic: "10YCZ-CEPS-----N"
     public_power_country: "cz"
     timezone: "Europe/Prague"
     holidays: "CZ"
@@ -93,6 +98,7 @@ zones:
   DE_LU:
     name: "Deutschland/Luxemburg"
     entsoe_eic_bzn: "DE-LU"
+    entsoe_eic: "10Y1001A1001A82H"
     public_power_country: "de"
     timezone: "Europe/Berlin"
     holidays: "DE"
@@ -103,6 +109,7 @@ zones:
   DK1:
     name: "Danmark (Vest)"
     entsoe_eic_bzn: "DK1"
+    entsoe_eic: "10YDK-1--------W"
     timezone: "Europe/Copenhagen"
     holidays: "DK"
     priced: false
@@ -112,6 +119,7 @@ zones:
   DK2:
     name: "Danmark (Ost)"
     entsoe_eic_bzn: "DK2"
+    entsoe_eic: "10YDK-2--------M"
     timezone: "Europe/Copenhagen"
     holidays: "DK"
     priced: false
@@ -121,6 +129,7 @@ zones:
   EE:
     name: "Eesti"
     entsoe_eic_bzn: "EE"
+    entsoe_eic: "10Y1001A1001A39I"
     public_power_country: "ee"
     timezone: "Europe/Tallinn"
     holidays: "EE"
@@ -131,6 +140,7 @@ zones:
   ES:
     name: "Espana"
     entsoe_eic_bzn: "ES"
+    entsoe_eic: "10YES-REE------0"
     public_power_country: "es"
     timezone: "Europe/Madrid"
     holidays: "ES"
@@ -141,6 +151,7 @@ zones:
   FI:
     name: "Suomi"
     entsoe_eic_bzn: "FI"
+    entsoe_eic: "10YFI-1--------U"
     public_power_country: "fi"
     timezone: "Europe/Helsinki"
     holidays: "FI"
@@ -151,6 +162,7 @@ zones:
   FR:
     name: "France"
     entsoe_eic_bzn: "FR"
+    entsoe_eic: "10YFR-RTE------C"
     public_power_country: "fr"
     timezone: "Europe/Paris"
     holidays: "FR"
@@ -161,6 +173,7 @@ zones:
   GR:
     name: "Ellada"
     entsoe_eic_bzn: "GR"
+    entsoe_eic: "10YGR-HTSO-----Y"
     public_power_country: "gr"
     timezone: "Europe/Athens"
     holidays: "GR"
@@ -171,6 +184,7 @@ zones:
   HR:
     name: "Hrvatska"
     entsoe_eic_bzn: "HR"
+    entsoe_eic: "10YHR-HEP------M"
     public_power_country: "hr"
     timezone: "Europe/Zagreb"
     holidays: "HR"
@@ -181,6 +195,7 @@ zones:
   HU:
     name: "Magyarorszag"
     entsoe_eic_bzn: "HU"
+    entsoe_eic: "10YHU-MAVIR----U"
     public_power_country: "hu"
     timezone: "Europe/Budapest"
     holidays: "HU"
@@ -191,6 +206,7 @@ zones:
   IT_North:
     name: "Italia (Nord)"
     entsoe_eic_bzn: "IT-North"
+    entsoe_eic: "10Y1001A1001A73I"
     timezone: "Europe/Rome"
     holidays: "IT"
     priced: false
@@ -200,6 +216,7 @@ zones:
   IT_Centre_North:
     name: "Italia (Centro-Nord)"
     entsoe_eic_bzn: "IT-Centre-North"
+    entsoe_eic: "10Y1001A1001A70O"
     timezone: "Europe/Rome"
     holidays: "IT"
     priced: false
@@ -209,6 +226,7 @@ zones:
   IT_Centre_South:
     name: "Italia (Centro-Sud)"
     entsoe_eic_bzn: "IT-Centre-South"
+    entsoe_eic: "10Y1001A1001A71M"
     timezone: "Europe/Rome"
     holidays: "IT"
     priced: false
@@ -218,6 +236,7 @@ zones:
   IT_South:
     name: "Italia (Sud)"
     entsoe_eic_bzn: "IT-South"
+    entsoe_eic: "10Y1001A1001A788"
     timezone: "Europe/Rome"
     holidays: "IT"
     priced: false
@@ -227,6 +246,7 @@ zones:
   IT_Sicily:
     name: "Italia (Sicilia)"
     entsoe_eic_bzn: "IT-Sicily"
+    entsoe_eic: "10Y1001A1001A75E"
     timezone: "Europe/Rome"
     holidays: "IT"
     priced: false
@@ -236,6 +256,7 @@ zones:
   IT_Sardinia:
     name: "Italia (Sardegna)"
     entsoe_eic_bzn: "IT-Sardinia"
+    entsoe_eic: "10Y1001A1001A74G"
     timezone: "Europe/Rome"
     holidays: "IT"
     priced: false
@@ -245,6 +266,7 @@ zones:
   IT_Calabria:
     name: "Italia (Calabria)"
     entsoe_eic_bzn: "IT-Calabria"
+    entsoe_eic: "10Y1001C--00096J"
     timezone: "Europe/Rome"
     holidays: "IT"
     priced: false
@@ -254,6 +276,7 @@ zones:
   LT:
     name: "Lietuva"
     entsoe_eic_bzn: "LT"
+    entsoe_eic: "10YLT-1001A0008Q"
     public_power_country: "lt"
     timezone: "Europe/Vilnius"
     holidays: "LT"
@@ -264,6 +287,7 @@ zones:
   LV:
     name: "Latvija"
     entsoe_eic_bzn: "LV"
+    entsoe_eic: "10YLV-1001A00074"
     public_power_country: "lv"
     timezone: "Europe/Riga"
     holidays: "LV"
@@ -274,6 +298,7 @@ zones:
   ME:
     name: "Crna Gora"
     entsoe_eic_bzn: "ME"
+    entsoe_eic: "10YCS-CG-TSO---S"
     public_power_country: "me"
     timezone: "Europe/Podgorica"
     holidays: "ME"
@@ -284,6 +309,7 @@ zones:
   NO1:
     name: "Norge (NO1, Oslo)"
     entsoe_eic_bzn: "NO1"
+    entsoe_eic: "10YNO-1--------2"
     timezone: "Europe/Oslo"
     holidays: "NO"
     priced: false
@@ -293,6 +319,7 @@ zones:
   NO2:
     name: "Norge (NO2, Kristiansand)"
     entsoe_eic_bzn: "NO2"
+    entsoe_eic: "10YNO-2--------T"
     timezone: "Europe/Oslo"
     holidays: "NO"
     priced: false
@@ -302,6 +329,7 @@ zones:
   NO3:
     name: "Norge (NO3, Trondheim)"
     entsoe_eic_bzn: "NO3"
+    entsoe_eic: "10YNO-3--------J"
     timezone: "Europe/Oslo"
     holidays: "NO"
     priced: false
@@ -311,6 +339,7 @@ zones:
   NO4:
     name: "Norge (NO4, Tromso)"
     entsoe_eic_bzn: "NO4"
+    entsoe_eic: "10YNO-4--------9"
     timezone: "Europe/Oslo"
     holidays: "NO"
     priced: false
@@ -320,6 +349,7 @@ zones:
   NO5:
     name: "Norge (NO5, Bergen)"
     entsoe_eic_bzn: "NO5"
+    entsoe_eic: "10Y1001A1001A48H"
     timezone: "Europe/Oslo"
     holidays: "NO"
     priced: false
@@ -329,6 +359,7 @@ zones:
   PL:
     name: "Polska"
     entsoe_eic_bzn: "PL"
+    entsoe_eic: "10YPL-AREA-----S"
     public_power_country: "pl"
     timezone: "Europe/Warsaw"
     holidays: "PL"
@@ -339,6 +370,7 @@ zones:
   PT:
     name: "Portugal"
     entsoe_eic_bzn: "PT"
+    entsoe_eic: "10YPT-REN------W"
     public_power_country: "pt"
     timezone: "Europe/Lisbon"
     holidays: "PT"
@@ -349,6 +381,7 @@ zones:
   RO:
     name: "Romania"
     entsoe_eic_bzn: "RO"
+    entsoe_eic: "10YRO-TEL------P"
     public_power_country: "ro"
     timezone: "Europe/Bucharest"
     holidays: "RO"
@@ -359,6 +392,7 @@ zones:
   RS:
     name: "Srbija"
     entsoe_eic_bzn: "RS"
+    entsoe_eic: "10YCS-SERBIATSOV"
     public_power_country: "rs"
     timezone: "Europe/Belgrade"
     holidays: "RS"
@@ -369,6 +403,7 @@ zones:
   SE1:
     name: "Sverige (SE1, Lulea)"
     entsoe_eic_bzn: "SE1"
+    entsoe_eic: "10Y1001A1001A44P"
     timezone: "Europe/Stockholm"
     holidays: "SE"
     priced: false
@@ -378,6 +413,7 @@ zones:
   SE2:
     name: "Sverige (SE2, Sundsvall)"
     entsoe_eic_bzn: "SE2"
+    entsoe_eic: "10Y1001A1001A45N"
     timezone: "Europe/Stockholm"
     holidays: "SE"
     priced: false
@@ -387,6 +423,7 @@ zones:
   SE3:
     name: "Sverige (SE3, Stockholm)"
     entsoe_eic_bzn: "SE3"
+    entsoe_eic: "10Y1001A1001A46L"
     timezone: "Europe/Stockholm"
     holidays: "SE"
     priced: false
@@ -396,6 +433,7 @@ zones:
   SE4:
     name: "Sverige (SE4, Malmo)"
     entsoe_eic_bzn: "SE4"
+    entsoe_eic: "10Y1001A1001A47J"
     timezone: "Europe/Stockholm"
     holidays: "SE"
     priced: false
@@ -405,6 +443,7 @@ zones:
   SI:
     name: "Slovenija"
     entsoe_eic_bzn: "SI"
+    entsoe_eic: "10YSI-ELES-----O"
     public_power_country: "si"
     timezone: "Europe/Ljubljana"
     holidays: "SI"
@@ -415,6 +454,7 @@ zones:
   SK:
     name: "Slovensko"
     entsoe_eic_bzn: "SK"
+    entsoe_eic: "10YSK-SEPS-----K"
     public_power_country: "sk"
     timezone: "Europe/Bratislava"
     holidays: "SK"
