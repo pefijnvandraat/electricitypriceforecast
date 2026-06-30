@@ -126,6 +126,12 @@ function computeEvWindows(med, fcCut) {
 
   let pts = med.map(([iso, v]) => ({ t: new Date(iso), iso, v }))
     .filter((p) => isFinite(p.v) && (!fcCut || p.t <= fcCut));
+  // Never schedule charging in the past: drop hours that have already ended.
+  // Floor live "now" to the current hour so the current (partially elapsed)
+  // hour is still usable, but earlier hours are excluded.
+  const floorHour = new Date();
+  floorHour.setMinutes(0, 0, 0);
+  pts = pts.filter((p) => p.t >= floorHour);
 
   // ---- TARGET MODE: cheapest hours until the deadline ----
   if (target) {
