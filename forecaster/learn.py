@@ -32,6 +32,8 @@ _BIAS_CAP = 300.0          # EUR/MWh, guard against runaway corrections
 _LOG_KEEP_DAYS = 50        # prune error-log entries older than this
 _OOS_WINDOW_DAYS = 45      # trailing window for calibration
 _PEAK_HOURS = range(17, 22)  # local hours treated as the evening peak
+_SCARCITY_K = 0.6          # upper-band multiplier per std of scarcity above normal
+_SCARCITY_Z_CAP = 3.0      # cap on the scarcity z-score (avoid runaway widening)
 
 
 def _hod_local(index, tz):
@@ -143,8 +145,17 @@ def calibrate(state, price_actual, tz, now):
 # --------------------------------------------------------------------------- #
 # 3. Apply corrections to a forecast
 # --------------------------------------------------------------------------- #
-def apply(fc_index, p10, p50, p90, bias_by_hour, band_scale, tz):
-    """Return bias-corrected, calibrated (p10, p50, p90) arrays."""
+def apply(fc_index, p10, p50, p90, bias_by_hour, band_scale, tz,
+          scarcity_z=None, scarcity_k=_SCARCITY_K):
+    """Return bias-corrected, calibrated (p10, p50, p90) arrays.
+
+    When `scarcity_z` (a per-hour z-score of the low-renewables scarcity signal,
+    already clipped at 0 for below-normal hours) is supplied, the UPPER half of
+    the band is widened multiplicatively on extreme low-wind/low-solar hours.
+    This is a no-op on normal/below-average days (z=0), so it cannot hurt the
+    calibration of ordinary days, but it lets the band breathe ahead of the
+    scarcity-driven evening spikes that tree models cannot extrapolate.
+    """
     p10 = np.asarray(p10, dtype=float)
     p50 = np.asarray(p50, dtype=float)
     p90 = np.asarray(p90, dtype=float)
@@ -154,6 +165,9 @@ def apply(fc_index, p10, p50, p90, bias_by_hour, band_scale, tz):
     p50c = p50 + bias
     half_lo = np.maximum(p50 - p10, 0.0) * band_scale
     half_hi = np.maximum(p90 - p50, 0.0) * band_scale
+    if scarcity_z is not None:
+        z = np.clip(np.asarray(scarcity_z, dtype=float), 0.0, _SCARCITY_Z_CAP)
+        half_hi = half_hi * (1.0 + scarcity_k * z)
     p10c = p50c - half_lo
     p90c = p50c + half_hi
     # keep ordering sane

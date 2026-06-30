@@ -405,6 +405,8 @@ function render() {
     bits.push(p);
   }
   if (current.resid_demand) bits.push(T('resid'));
+  if (lrn && lrn.scarcity_widen_max && lrn.scarcity_widen_max > 1.1)
+    bits.push(T('scarcity') + ' \u00d7' + lrn.scarcity_widen_max.toFixed(1));
   if (current.priced && current.taxes)
     bits.push(T('allin_formula') + ' \u00d7 1,' + current.taxes.btw_pct +
       '; ' + T('rebate') + ' \u20ac ' + current.taxes.belastingvermindering_eur_per_jaar + '/' + T('per_year'));

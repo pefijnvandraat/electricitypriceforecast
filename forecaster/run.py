@@ -173,6 +173,24 @@ def run_zone(code, cfg, gas=None, co2=None):
     feats["roll7"] = roll7.values
     feat_cols = list(feat_cols) + ["lag24", "lag168", "roll7"]
 
+    # ---- scarcity signal (low wind + low solar => evening price-spike risk) ----
+    # Standardise wind & solar on the training window and sum the negatives, so a
+    # high value means "scarcer than a normal day". Fed to the model as a gated
+    # feature AND used to widen the upper band on extreme low-renewables hours
+    # (where tree models cannot extrapolate the spike). No NaN -> never narrows
+    # the valid/training mask.
+    sc_ref = feats.index >= (now - pd.Timedelta(days=d.get("history_days_train", 365)))
+    _w = pd.to_numeric(feats["wind100"], errors="coerce")
+    _r = pd.to_numeric(feats["radiation"], errors="coerce")
+    _w_sd = float(_w[sc_ref].std() or 0.0) or 1.0
+    _r_sd = float(_r[sc_ref].std() or 0.0) or 1.0
+    scar = (-(_w / _w_sd)) + (-(_r / _r_sd))
+    scar = scar.where(scar.notna(), 0.0)
+    feats["scarcity"] = scar.values
+    feat_cols = list(feat_cols) + ["scarcity"]
+    sc_mu = float(scar[sc_ref].mean())
+    sc_sd = float(scar[sc_ref].std() or 0.0) or 1.0
+
     # ---- history (actual published day-ahead prices, primary = Energy-Charts) ----
     hist = price.dropna()
     if len(hist):
@@ -213,9 +231,11 @@ def run_zone(code, cfg, gas=None, co2=None):
         groups["lags"] = ["lag24", "lag168", "roll7"]
     if result_entso_fc and "entso_resid_fc" in feat_cols:
         groups["entso"] = ["entso_resid_fc"]
+    if "scarcity" in feat_cols:
+        groups["scarcity"] = ["scarcity"]
 
     cols = base_cols
-    kept = {"resid": False, "lags": False, "entso": False}
+    kept = {"resid": False, "lags": False, "entso": False, "scarcity": False}
     if len(y_tr) > 700 and groups:
         mae_base = model.holdout_mae(feats.loc[train_mask, base_cols], y_tr, days=21)
         chosen = list(base_cols)
@@ -234,6 +254,8 @@ def run_zone(code, cfg, gas=None, co2=None):
     result["resid_demand"] = bool(kept["resid"])
     result["price_lags"] = bool(kept["lags"])
     result["entso_forecast"] = bool(kept["entso"])
+    result["scarcity_feature"] = bool(kept["scarcity"])
+    result["scarcity_band"] = True
 
     x_tr = feats.loc[train_mask, cols]
     x_fut = feats.loc[fut_mask, cols]
@@ -251,11 +273,18 @@ def run_zone(code, cfg, gas=None, co2=None):
         # log the RAW predictions so future runs can measure true error
         learn.log_predictions(state, x_fut.index, preds["p10"], preds["p50"], preds["p90"])
         learn.save_state(code, state, write_dir=OUT / "state")
+        # scarcity z-score per forecast hour (0 = normal/below average); widens the
+        # upper band ahead of extreme low-renewables evenings the model can't extrapolate
+        sc_z = np.clip((feats.loc[fut_mask, "scarcity"].values - sc_mu) / sc_sd,
+                       0.0, learn._SCARCITY_Z_CAP)
         p10c, p50c, p90c = learn.apply(x_fut.index, preds["p10"], preds["p50"],
-                                       preds["p90"], bias, band_scale, z["timezone"])
+                                       preds["p90"], bias, band_scale, z["timezone"],
+                                       scarcity_z=sc_z)
         preds = {"p10": p10c, "p50": p50c, "p90": p90c}
         peak_corr = float(np.mean([bias[h] for h in learn._PEAK_HOURS]))
         learn_metrics["peak_correction"] = round(peak_corr, 1)
+        learn_metrics["scarcity_widen_max"] = round(
+            float(1.0 + learn._SCARCITY_K * np.max(sc_z)) if len(sc_z) else 1.0, 2)
         if ho_true is not None:
             mae_ho = round(float(np.mean(np.abs(ho_true - ho_pred))), 2)
             learn_metrics["mae_holdout"] = mae_ho
