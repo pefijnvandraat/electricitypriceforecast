@@ -18,6 +18,11 @@ h1{margin:0;font-size:22px}
 .sub{margin:4px 0 0;color:var(--muted);font-size:13px}
 .datastamp{margin:6px 0 0;font-size:13px;font-weight:600;color:var(--fc)}
 .utility{display:flex;gap:8px;align-items:center}
+.utilcol{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.verbar{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.verinfo{font-size:12px;color:var(--muted);white-space:nowrap}
+.verbtn{cursor:pointer;text-decoration:none;padding:4px 10px;font-size:12px}
+.verbtn:hover{color:var(--ink);border-color:var(--fc)}
 .util{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);
   border-radius:10px;padding:6px 10px;color:var(--muted);font-size:13px}
 .util select{background:transparent;border:0;color:var(--ink);font-size:13px;cursor:pointer}

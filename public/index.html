@@ -14,14 +14,25 @@
         <p class="sub" data-i18n="s">Dynamische consumentenprijs &middot; uitsluitend publieke data &middot; dagelijks ververst</p>
         <p class="datastamp" id="datastamp"></p>
       </div>
-      <div class="utility">
-        <label class="util">
-          <span aria-hidden="true">&#127760;</span>
-          <select id="lang" aria-label="Language"></select>
-        </label>
-        <button id="themeBtn" class="util themebtn" type="button" aria-label="Theme">
-          <span id="themeIcon">&#127769;</span>
-        </button>
+      <div class="utilcol">
+        <div class="utility">
+          <label class="util">
+            <span aria-hidden="true">&#127760;</span>
+            <select id="lang" aria-label="Language"></select>
+          </label>
+          <button id="themeBtn" class="util themebtn" type="button" aria-label="Theme">
+            <span id="themeIcon">&#127769;</span>
+          </button>
+        </div>
+        <div class="verbar">
+          <span class="verinfo" id="appVersion"></span>
+          <a class="util verbtn" id="feedbackBtn"
+             href="https://github.com/pefijnvandraat/electricitypriceforecast/discussions"
+             target="_blank" rel="noopener noreferrer">
+            <span aria-hidden="true">&#128172;</span>
+            <span data-i18n="feedback">Feedback</span>
+          </a>
+        </div>
       </div>
     </div>
   </header>

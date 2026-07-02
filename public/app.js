@@ -8,6 +8,21 @@ const DAY = 864e5;
 const fmt = (v) => (v == null ? '-' : '\u20ac ' + Number(v).toFixed(3));
 const T = (k) => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
 
+/* App version + last update. Bump these on each deploy while developing. */
+const VERSION = 'v0.9.0';
+const BUILD_DATE = '2026-07-02';   // ISO date this version went live
+
+function renderVersion() {
+  const el = $('appVersion');
+  if (!el) return;
+  let dstr = BUILD_DATE;
+  try {
+    dstr = new Date(BUILD_DATE + 'T00:00:00').toLocaleDateString(lang,
+      { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch (e) {}
+  el.textContent = VERSION + ' \u00b7 ' + T('updated') + ' ' + dstr;
+}
+
 function initChart() {
   const theme = document.documentElement.getAttribute('data-theme') === 'light' ? null : 'dark';
   if (chart) chart.dispose();
@@ -34,6 +49,7 @@ function applyLang(code) {
   document.querySelectorAll('[data-i18n-title]').forEach((el) => {
     el.setAttribute('title', T(el.getAttribute('data-i18n-title')));
   });
+  renderVersion();
   if (current) render();
 }
 
