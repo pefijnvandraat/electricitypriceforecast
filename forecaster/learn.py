@@ -33,6 +33,7 @@ _LOG_KEEP_DAYS = 50        # prune error-log entries older than this
 _OOS_WINDOW_DAYS = 45      # trailing window for calibration
 _PEAK_HOURS = range(17, 22)  # local hours treated as the evening peak
 _SCARCITY_K = 0.6          # upper-band multiplier per std of scarcity above normal
+_ABUNDANCE_K = 0.7         # lower-band multiplier per std of abundance below normal
 _SCARCITY_Z_CAP = 3.0      # cap on the scarcity z-score (avoid runaway widening)
 
 
@@ -146,15 +147,20 @@ def calibrate(state, price_actual, tz, now):
 # 3. Apply corrections to a forecast
 # --------------------------------------------------------------------------- #
 def apply(fc_index, p10, p50, p90, bias_by_hour, band_scale, tz,
-          scarcity_z=None, scarcity_k=_SCARCITY_K):
+          scarcity_z=None, scarcity_k=_SCARCITY_K,
+          abundance_z=None, abundance_k=_ABUNDANCE_K):
     """Return bias-corrected, calibrated (p10, p50, p90) arrays.
 
-    When `scarcity_z` (a per-hour z-score of the low-renewables scarcity signal,
-    already clipped at 0 for below-normal hours) is supplied, the UPPER half of
-    the band is widened multiplicatively on extreme low-wind/low-solar hours.
-    This is a no-op on normal/below-average days (z=0), so it cannot hurt the
-    calibration of ordinary days, but it lets the band breathe ahead of the
-    scarcity-driven evening spikes that tree models cannot extrapolate.
+    The uncertainty band is widened conditionally on the low-renewables signal,
+    on BOTH tails (each already clipped at 0 so normal days are untouched):
+
+    * `scarcity_z` (extreme low wind+solar) widens the UPPER half of the band —
+      tree models cannot extrapolate the scarcity-driven evening price spikes.
+    * `abundance_z` (extreme high wind+solar) widens the LOWER half — solar/wind
+      gluts crash midday prices below what the model's p10 anticipates.
+
+    Both are no-ops on normal days (z=0), so ordinary-day calibration is intact,
+    but the band breathes symmetrically around genuine renewable extremes.
     """
     p10 = np.asarray(p10, dtype=float)
     p50 = np.asarray(p50, dtype=float)
@@ -168,6 +174,9 @@ def apply(fc_index, p10, p50, p90, bias_by_hour, band_scale, tz,
     if scarcity_z is not None:
         z = np.clip(np.asarray(scarcity_z, dtype=float), 0.0, _SCARCITY_Z_CAP)
         half_hi = half_hi * (1.0 + scarcity_k * z)
+    if abundance_z is not None:
+        za = np.clip(np.asarray(abundance_z, dtype=float), 0.0, _SCARCITY_Z_CAP)
+        half_lo = half_lo * (1.0 + abundance_k * za)
     p10c = p50c - half_lo
     p90c = p50c + half_hi
     # keep ordering sane

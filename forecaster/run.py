@@ -273,18 +273,23 @@ def run_zone(code, cfg, gas=None, co2=None):
         # log the RAW predictions so future runs can measure true error
         learn.log_predictions(state, x_fut.index, preds["p10"], preds["p50"], preds["p90"])
         learn.save_state(code, state, write_dir=OUT / "state")
-        # scarcity z-score per forecast hour (0 = normal/below average); widens the
-        # upper band ahead of extreme low-renewables evenings the model can't extrapolate
-        sc_z = np.clip((feats.loc[fut_mask, "scarcity"].values - sc_mu) / sc_sd,
-                       0.0, learn._SCARCITY_Z_CAP)
+        # scarcity z-score per forecast hour (0 = normal). The positive tail
+        # (extreme low wind+solar) widens the upper band ahead of evening spikes;
+        # the negative tail (extreme high wind+solar = glut) widens the lower band
+        # ahead of midday price crashes. Both no-ops on normal days.
+        sc_raw = (feats.loc[fut_mask, "scarcity"].values - sc_mu) / sc_sd
+        sc_z = np.clip(sc_raw, 0.0, learn._SCARCITY_Z_CAP)
+        ab_z = np.clip(-sc_raw, 0.0, learn._SCARCITY_Z_CAP)
         p10c, p50c, p90c = learn.apply(x_fut.index, preds["p10"], preds["p50"],
                                        preds["p90"], bias, band_scale, z["timezone"],
-                                       scarcity_z=sc_z)
+                                       scarcity_z=sc_z, abundance_z=ab_z)
         preds = {"p10": p10c, "p50": p50c, "p90": p90c}
         peak_corr = float(np.mean([bias[h] for h in learn._PEAK_HOURS]))
         learn_metrics["peak_correction"] = round(peak_corr, 1)
         learn_metrics["scarcity_widen_max"] = round(
             float(1.0 + learn._SCARCITY_K * np.max(sc_z)) if len(sc_z) else 1.0, 2)
+        learn_metrics["abundance_widen_max"] = round(
+            float(1.0 + learn._ABUNDANCE_K * np.max(ab_z)) if len(ab_z) else 1.0, 2)
         if ho_true is not None:
             mae_ho = round(float(np.mean(np.abs(ho_true - ho_pred))), 2)
             learn_metrics["mae_holdout"] = mae_ho
