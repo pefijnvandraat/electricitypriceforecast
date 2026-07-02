@@ -261,7 +261,7 @@ function render() {
   // forecast (plot ALL points; the visible horizon is controlled by xAxis max / zoom)
   const f = current.forecast;
   const sfx = allin ? '_allin_kwh' : '_wholesale_kwh';
-  const med = [], low = [], range = [], p90 = [];
+  const med = [], low = [], p90 = [];
   if (f) {
     f.time.forEach((t, i) => {
       const v50 = (f['p50' + sfx] || [])[i];
@@ -270,7 +270,6 @@ function render() {
       if (v50 != null) med.push([t, v50]);
       if (v10 != null && v90 != null) {
         low.push([t, v10]);
-        range.push([t, +(v90 - v10).toFixed(4)]);
         p90.push([t, v90]);
       }
     });
@@ -307,12 +306,27 @@ function render() {
     }
   }
   if (low.length) {
-    series.push(
-      { name: '_low', type: 'line', stack: 'band', showSymbol: false, data: low,
-        lineStyle: { width: 0 }, areaStyle: { opacity: 0 }, silent: true, tooltip: { show: false } },
-      { name: T('lband'), type: 'line', stack: 'band', showSymbol: false, data: range,
-        lineStyle: { width: 0 }, areaStyle: { color: bandCol }, silent: true },
-    );
+    // Confidence band as explicit per-hour polygons. A stacked area on a `time`
+    // axis mis-renders in ECharts (the fill drifts off the true p10/p90 envelope,
+    // so the p50 line can appear to poke outside it). Tiling the band with exact
+    // quadrilaterals from p10 to p90 is geometry we control, so it is always right.
+    const bandPts = low.map((d, i) => ({ t: new Date(d[0]).getTime(), p10: d[1], p90: p90[i][1] }));
+    series.push({
+      name: T('lband'), type: 'custom', z: 1, clip: true,
+      itemStyle: { color: bandCol },
+      data: bandPts.map((p) => [p.t, p.p90, p.p10]),
+      renderItem: (params, api) => {
+        const i = params.dataIndex;
+        if (i >= bandPts.length - 1) return;
+        const a = bandPts[i], b = bandPts[i + 1];
+        const p1 = api.coord([a.t, a.p10]);
+        const p2 = api.coord([a.t, a.p90]);
+        const p3 = api.coord([b.t, b.p90]);
+        const p4 = api.coord([b.t, b.p10]);
+        return { type: 'polygon', silent: true,
+          shape: { points: [p1, p2, p3, p4] }, style: { fill: bandCol } };
+      },
+    });
   }
   // ---- EV charging window optimizer (client-side, on the forecast p50) ----
   const evWindows = computeEvWindows(med, fcCut);
@@ -363,7 +377,12 @@ function render() {
         params.forEach((p) => {
           if (!p.seriesName || p.seriesName[0] === '_') return;
           // Default: price only (history / forecast p50 / ENTSO-E). Detail adds the band.
-          if (!detail && p.seriesName === bandName) return;
+          if (p.seriesName === bandName) {
+            if (!detail) return;
+            html += p.marker + ' ' + p.seriesName + ': ' +
+              fmt(p.value[2]) + '\u2013' + fmt(p.value[1]) + '<br/>';
+            return;
+          }
           html += p.marker + ' ' + p.seriesName + ': ' + fmt(p.value[1]) + '<br/>';
         });
         return html;
