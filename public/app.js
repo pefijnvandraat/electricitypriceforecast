@@ -9,7 +9,7 @@ const fmt = (v) => (v == null ? '-' : '\u20ac ' + Number(v).toFixed(3));
 const T = (k) => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
 
 /* App version + last update. Bump these on each deploy while developing. */
-const VERSION = 'v0.9.0';
+const VERSION = 'v0.10.0';
 const BUILD_DATE = '2026-07-02';   // ISO date this version went live
 
 function renderVersion() {
@@ -449,6 +449,7 @@ function render() {
     bits.push(p);
   }
   if (current.resid_demand) bits.push(T('resid'));
+  if (current.regional_fundamentals) bits.push(T('regional'));
   if (lrn && lrn.scarcity_widen_max && lrn.scarcity_widen_max > 1.1)
     bits.push(T('scarcity') + ' \u00d7' + lrn.scarcity_widen_max.toFixed(1));
   if (lrn && lrn.abundance_widen_max && lrn.abundance_widen_max > 1.1)

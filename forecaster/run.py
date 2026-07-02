@@ -139,6 +139,40 @@ def run_zone(code, cfg, gas=None, co2=None):
     else:
         result_entso_fc = False
 
+    # ---- REGIONAL market-coupling fundamentals ----
+    # The NL (and CWE) price is set by the coupled regional market: neighbour prices
+    # explain the bulk of the variance and the extremes coincide almost perfectly.
+    # We cannot use neighbour PRICES (published simultaneously), but their ENTSO-E
+    # day-ahead residual demand FORECAST (load - wind - solar) IS available at D-1 and
+    # drives our midday crash / evening peak. Each neighbour contributes its residual
+    # forecast + a 3h ramp, filled beyond D+1 with a weather+calendar proxy.
+    regional_cols = []
+    neighbours = z.get("neighbours") or []
+    if token and neighbours and not feats.empty:
+        base_f = list(features.FEATURES)
+        for nbkey in neighbours:
+            nbz = cfg["zones"].get(nbkey) or {}
+            nbeic = nbz.get("entsoe_eic")
+            if not nbeic:
+                continue
+            try:
+                nefc, _l, _g = ingest.fetch_entsoe_residual_forecast(
+                    nbeic, wx_start, now + pd.Timedelta(days=2), token)
+                nefc = nefc.reindex(feats.index) if len(nefc) else pd.Series(dtype=float)
+                known = feats[base_f].notna().all(axis=1) & nefc.notna()
+                if int(known.sum()) > 500:
+                    pred = model.predict_feature(
+                        feats.loc[known, base_f], nefc.loc[known].values, feats[base_f])
+                    blended = nefc.copy()
+                    blended[blended.isna()] = pred[blended.isna().values]
+                    rcol = "nb_%s_resid" % nbkey
+                    feats[rcol] = blended.values
+                    feats["nb_%s_ramp3" % nbkey] = (
+                        pd.Series(blended.values, index=feats.index).diff(3).fillna(0.0).values)
+                    regional_cols += [rcol, "nb_%s_ramp3" % nbkey]
+            except Exception:
+                continue
+
     result = {
         "zone": code, "name": z["name"], "priced": priced,
         "generated_at": now.isoformat(), "timezone": z["timezone"],
@@ -233,9 +267,12 @@ def run_zone(code, cfg, gas=None, co2=None):
         groups["entso"] = ["entso_resid_fc"]
     if "scarcity" in feat_cols:
         groups["scarcity"] = ["scarcity"]
+    if regional_cols:
+        groups["regional"] = list(regional_cols)
 
     cols = base_cols
-    kept = {"resid": False, "lags": False, "entso": False, "scarcity": False}
+    kept = {"resid": False, "lags": False, "entso": False, "scarcity": False,
+            "regional": False}
     if len(y_tr) > 700 and groups:
         mae_base = model.holdout_mae(feats.loc[train_mask, base_cols], y_tr, days=21)
         chosen = list(base_cols)
@@ -256,6 +293,7 @@ def run_zone(code, cfg, gas=None, co2=None):
     result["entso_forecast"] = bool(kept["entso"])
     result["scarcity_feature"] = bool(kept["scarcity"])
     result["scarcity_band"] = True
+    result["regional_fundamentals"] = bool(kept["regional"])
 
     x_tr = feats.loc[train_mask, cols]
     x_fut = feats.loc[fut_mask, cols]

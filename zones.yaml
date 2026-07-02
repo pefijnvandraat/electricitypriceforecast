@@ -24,6 +24,10 @@ zones:
     entsoe_eic_bzn: "NL"
     public_power_country: "nl"
     fallback_source: "energyzero"   # fast EPEX source to fill days the EU sources lack yet
+    # Market-coupling neighbours: NL price is ~94% explained by DE alone (R2), extremes
+    # coincide ~100%. Their day-ahead load+wind+solar forecasts drive the NL midday crash
+    # and evening peak, so we feed each neighbour's ENTSO-E residual forecast as a feature.
+    neighbours: ["DE_LU", "BE"]
     timezone: "Europe/Amsterdam"
     holidays: "NL"
     priced: true
