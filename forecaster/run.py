@@ -150,6 +150,11 @@ def run_zone(code, cfg, gas=None, co2=None):
     neighbours = z.get("neighbours") or []
     if token and neighbours and not feats.empty:
         base_f = list(features.FEATURES)
+        # Neighbour fundamentals only need enough recent history to learn the
+        # coupling relationship; a shorter window keeps the ENTSO fetch (and this
+        # zone's CI shard) fast. Older hours are proxy-filled below, so the feature
+        # stays defined across the whole training window.
+        nb_start = max(wx_start, now - pd.Timedelta(days=150))
         for nbkey in neighbours:
             nbz = cfg["zones"].get(nbkey) or {}
             nbeic = nbz.get("entsoe_eic")
@@ -157,7 +162,7 @@ def run_zone(code, cfg, gas=None, co2=None):
                 continue
             try:
                 nefc, _l, _g = ingest.fetch_entsoe_residual_forecast(
-                    nbeic, wx_start, now + pd.Timedelta(days=2), token)
+                    nbeic, nb_start, now + pd.Timedelta(days=2), token)
                 nefc = nefc.reindex(feats.index) if len(nefc) else pd.Series(dtype=float)
                 known = feats[base_f].notna().all(axis=1) & nefc.notna()
                 if int(known.sum()) > 500:
