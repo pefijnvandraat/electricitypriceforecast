@@ -89,3 +89,29 @@ def holdout_predict(x, y, days=21):
     model.fit(x.iloc[:-n], y.iloc[:-n])
     pred = model.predict(x.iloc[-n:])
     return x.index[-n:], y.iloc[-n:].to_numpy(), pred
+
+
+def holdout_predict_pair(x, y, degrade_map, days=28):
+    """Out-of-sample p50 on the tail, predicted two ways for horizon-aware bands.
+
+    `near`  = prediction with the real features (the D+1 information state).
+    `far`   = prediction after degrading the given columns (e.g. price lags ->
+              rolling mean), emulating the information state once those features
+              are no longer known (D+2 and beyond). The spread between the two
+              residual distributions is what makes the conformal band grow with
+              forecast horizon.
+    Returns (index, y_true, near_pred, far_pred) or (None,)*4 if too little data.
+    """
+    n = days * 24
+    if len(x) <= n + 400:
+        return None, None, None, None
+    m = _estimator(0.5)
+    m.fit(x.iloc[:-n], y.iloc[:-n])
+    xt = x.iloc[-n:]
+    near = m.predict(xt)
+    xf = xt.copy()
+    for col, src in degrade_map.items():
+        if col in xf.columns and src in xf.columns:
+            xf[col] = xf[src].to_numpy()
+    far = m.predict(xf)
+    return x.index[-n:], y.iloc[-n:].to_numpy(), near, far

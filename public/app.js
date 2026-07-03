@@ -9,7 +9,7 @@ const fmt = (v) => (v == null ? '-' : '\u20ac ' + Number(v).toFixed(3));
 const T = (k) => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
 
 /* App version + last update. Bump these on each deploy while developing. */
-const VERSION = 'v0.10.0';
+const VERSION = 'v0.11.0';
 const BUILD_DATE = '2026-07-02';   // ISO date this version went live
 
 function renderVersion() {
@@ -432,8 +432,17 @@ function render() {
 
   const loc = lang;
   const ds = $('datastamp');
-  if (ds) ds.textContent = T('data_of') + ': ' + new Date(now).toLocaleString(loc,
-    { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  if (ds) {
+    let s = T('data_of') + ': ' + new Date(now).toLocaleString(loc,
+      { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    // Live reliability KPI: how often the published price actually landed inside
+    // the band we forecast (measured out-of-sample against realised day-ahead prices).
+    const lc = current.learning;
+    if (lc && lc.coverage != null && lc.n_samples)
+      s += '   \u00b7   ' + T('band_held') + ' ' + Math.round(lc.coverage * 100) + '% ' +
+        '(' + lc.n_samples + ' ' + T('learn_eval') + ')';
+    ds.textContent = s;
+  }
 
   const bits = [];
   bits.push(T('gen') + ': ' + new Date(now).toLocaleString(loc, { hour12: false }));
@@ -442,18 +451,13 @@ function render() {
   const lrn = current.learning;
   if (lrn) {
     let p = T('learn');
-    if (lrn.peak_correction) p += ': ' + T('learn_peak') + ' ' +
-      (lrn.peak_correction > 0 ? '+' : '') + lrn.peak_correction + ' \u20ac/MWh';
-    if (lrn.n_samples) p += ' \u00b7 ' + lrn.n_samples + ' ' + T('learn_eval') +
-      (lrn.coverage != null ? ' \u00b7 ' + Math.round(lrn.coverage * 100) + '% ' + T('learn_cov') : '');
+    if (lrn.coverage != null) p += ': ' + Math.round(lrn.coverage * 100) + '% ' + T('learn_cov');
+    if (lrn.conformal && lrn.conformal.horizon_growth)
+      p += ' \u00b7 ' + T('horizon_growth') + ' \u00d7' + lrn.conformal.horizon_growth.toFixed(1);
     bits.push(p);
   }
   if (current.resid_demand) bits.push(T('resid'));
   if (current.regional_fundamentals) bits.push(T('regional'));
-  if (lrn && lrn.scarcity_widen_max && lrn.scarcity_widen_max > 1.1)
-    bits.push(T('scarcity') + ' \u00d7' + lrn.scarcity_widen_max.toFixed(1));
-  if (lrn && lrn.abundance_widen_max && lrn.abundance_widen_max > 1.1)
-    bits.push(T('abundance') + ' \u00d7' + lrn.abundance_widen_max.toFixed(1));
   if (current.priced && current.taxes)
     bits.push(T('allin_formula') + ' \u00d7 1,' + current.taxes.btw_pct +
       '; ' + T('rebate') + ' \u20ac ' + current.taxes.belastingvermindering_eur_per_jaar + '/' + T('per_year'));

@@ -292,7 +292,6 @@ def run_zone(code, cfg, gas=None, co2=None):
     result["price_lags"] = bool(kept["lags"])
     result["entso_forecast"] = bool(kept["entso"])
     result["scarcity_feature"] = bool(kept["scarcity"])
-    result["scarcity_band"] = True
     result["regional_fundamentals"] = bool(kept["regional"])
 
     x_tr = feats.loc[train_mask, cols]
@@ -302,34 +301,42 @@ def run_zone(code, cfg, gas=None, co2=None):
         preds = model.train_predict(x_tr, y_tr, x_fut)
         preds.pop("p50_insample", None)
 
-        # ---- self-learning: daily bias correction + uncertainty calibration ----
-        # Genuine out-of-sample bias from a held-out tail (captures peak underestimation).
-        ho_idx, ho_true, ho_pred = model.holdout_predict(x_tr, y_tr, days=21)
-        bias = learn.oos_bias(ho_idx, ho_true, ho_pred, z["timezone"])
+        # ---- self-learning: conformal, horizon- & regime-conditional band ----
+        # Instead of the model's own (miscalibrated, horizon-flat) quantiles, build
+        # the band from the empirical distribution of the model's real out-of-sample
+        # errors, split near (real lags ~ D+1) vs far (lags degraded ~ D+2+) and by
+        # regime (evening/day/night). This replaces the hand-tuned scarcity/abundance
+        # multipliers with a learned, calibrated band that grows with lead time.
+        degrade = {}
+        if "lag24" in cols and "roll7" in cols:
+            degrade["lag24"] = "roll7"
+        if "lag168" in cols and "roll7" in cols:
+            degrade["lag168"] = "roll7"
+        ho_idx, ho_true, near, far = model.holdout_predict_pair(x_tr, y_tr, degrade, days=28)
+        lead_hours = (x_fut.index - now).total_seconds() / 3600.0
+
         state = learn.load_state(code, read_dir=STATE_READ)
-        band_scale, learn_metrics = learn.calibrate(state, price, z["timezone"], now)
-        # log the RAW predictions so future runs can measure true error
+        # calibrate() now yields the honest coverage KPI, measured on the FINAL band
+        # we logged on previous runs (see log_predictions below).
+        _band_scale, learn_metrics = learn.calibrate(state, price, z["timezone"], now)
+
+        cb = learn.conformal_band(ho_idx, ho_true, near, far, x_fut.index,
+                                  preds["p50"], z["timezone"], lead_hours)
+        if cb is not None:
+            p10c, p50c, p90c, cdiag = cb
+            learn_metrics["conformal"] = cdiag
+            result["conformal_band"] = True
+        else:
+            p10c, p50c, p90c = preds["p10"], preds["p50"], preds["p90"]
+            result["conformal_band"] = False
+        preds = {"p10": p10c, "p50": p50c, "p90": p90c}
+
+        # log the FINAL band (what users see) so future runs measure true coverage
         learn.log_predictions(state, x_fut.index, preds["p10"], preds["p50"], preds["p90"])
         learn.save_state(code, state, write_dir=OUT / "state")
-        # scarcity z-score per forecast hour (0 = normal). The positive tail
-        # (extreme low wind+solar) widens the upper band ahead of evening spikes;
-        # the negative tail (extreme high wind+solar = glut) widens the lower band
-        # ahead of midday price crashes. Both no-ops on normal days.
-        sc_raw = (feats.loc[fut_mask, "scarcity"].values - sc_mu) / sc_sd
-        sc_z = np.clip(sc_raw, 0.0, learn._SCARCITY_Z_CAP)
-        ab_z = np.clip(-sc_raw, 0.0, learn._SCARCITY_Z_CAP)
-        p10c, p50c, p90c = learn.apply(x_fut.index, preds["p10"], preds["p50"],
-                                       preds["p90"], bias, band_scale, z["timezone"],
-                                       scarcity_z=sc_z, abundance_z=ab_z)
-        preds = {"p10": p10c, "p50": p50c, "p90": p90c}
-        peak_corr = float(np.mean([bias[h] for h in learn._PEAK_HOURS]))
-        learn_metrics["peak_correction"] = round(peak_corr, 1)
-        learn_metrics["scarcity_widen_max"] = round(
-            float(1.0 + learn._SCARCITY_K * np.max(sc_z)) if len(sc_z) else 1.0, 2)
-        learn_metrics["abundance_widen_max"] = round(
-            float(1.0 + learn._ABUNDANCE_K * np.max(ab_z)) if len(ab_z) else 1.0, 2)
-        if ho_true is not None:
-            mae_ho = round(float(np.mean(np.abs(ho_true - ho_pred))), 2)
+
+        if ho_true is not None and near is not None:
+            mae_ho = round(float(np.mean(np.abs(ho_true - near))), 2)
             learn_metrics["mae_holdout"] = mae_ho
             result["mae_eur_mwh"] = mae_ho
         result["learning"] = learn_metrics
