@@ -9,8 +9,8 @@ const fmt = (v) => (v == null ? '-' : '\u20ac ' + Number(v).toFixed(3));
 const T = (k) => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
 
 /* App version + last update. Bump these on each deploy while developing. */
-const VERSION = 'v0.11.0';
-const BUILD_DATE = '2026-07-02';   // ISO date this version went live
+const VERSION = 'v0.11.1';
+const BUILD_DATE = '2026-07-04';   // ISO date this version went live
 
 function renderVersion() {
   const el = $('appVersion');
@@ -248,10 +248,14 @@ function render() {
 
   const pad = (n) => String(n).padStart(2, '0');
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const wday = (d) => {
+    const s = d.toLocaleDateString(lang, { weekday: 'short' }).replace('.', '');
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
   const axisFmt = (val) => {
     const d = new Date(val);
     if (d.getHours() === 0 && d.getMinutes() === 0)
-      return '{d|' + d.getDate() + ' ' + months[d.getMonth()] + '}';   // bold date
+      return '{d|' + wday(d) + ' ' + d.getDate() + ' ' + months[d.getMonth()] + '}';  // bold weekday + date
     return pad(d.getHours()) + ':' + pad(d.getMinutes());              // normal hour
   };
   const tipFmt = (val) => {
