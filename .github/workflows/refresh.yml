@@ -80,10 +80,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add public/data
-          if ! git diff --cached --quiet; then
-            git commit -m "Refresh forecast data [skip ci]"
-            git push
+          if git diff --cached --quiet; then
+            echo "No data changes to commit."
+            exit 0
           fi
+          git commit -m "Refresh forecast data [skip ci]"
+          # Another run may push between our checkout and push (concurrent
+          # schedule/dispatch). Rebase onto the latest remote and retry a few times.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed on attempt $i."
+              exit 0
+            fi
+            echo "Push rejected (attempt $i); rebasing onto origin/main and retrying..."
+            git pull --rebase --autostash origin main || true
+            sleep $((RANDOM % 5 + 2))
+          done
+          echo "::error::Failed to push refreshed data after 5 attempts."
+          exit 1
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
